@@ -91,7 +91,7 @@ export class TraderHelper
             disabled: false,
             loyaltyLevel: rawProfileTemplate.initialLoyaltyLevel,
             salesSum: rawProfileTemplate.initialSalesSum,
-            standing: rawProfileTemplate.initialStanding,
+            standing: this.getStartingStanding(traderID, rawProfileTemplate), 
             nextResupply: this.databaseServer.getTables().traders[traderID].base.nextResupply,
             unlocked: this.databaseServer.getTables().traders[traderID].base.unlockedByDefault
         };
@@ -100,6 +100,17 @@ export class TraderHelper
         {
             pmcData.TradersInfo[traderID].unlocked = rawProfileTemplate.jaegerUnlocked;
         }
+    }
+
+    protected getStartingStanding(traderId: string, rawProfileTemplate: ProfileTraderTemplate): number
+    {
+        // Edge case for Lightkeeper, 0 standing means seeing `Make Amends - Buyout` quest
+        if (traderId === "638f541a29ffd1183d187f57" && rawProfileTemplate.initialStanding === 0)
+        {
+            return 0.01;
+        }
+
+        return rawProfileTemplate.initialStanding;
     }
 
     /**
@@ -396,6 +407,13 @@ export class TraderHelper
     {
         const keys = Object.keys(Traders).filter(x => Traders[x] === traderId);
 
-        return keys.length > 0 ? keys[0] as Traders : null;
+        if (keys.length === 0)
+        {
+            this.logger.error(`Unable to find trader: ${traderId} in Traders enum`);
+
+            return null;
+        }
+
+        return keys[0] as Traders;
     }
 }
