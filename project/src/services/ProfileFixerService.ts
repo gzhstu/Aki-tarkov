@@ -3,6 +3,7 @@ import { inject, injectable } from "tsyringe";
 import { HideoutHelper } from "../helpers/HideoutHelper";
 import { InventoryHelper } from "../helpers/InventoryHelper";
 import { ItemHelper } from "../helpers/ItemHelper";
+import { TraderHelper } from "../helpers/TraderHelper";
 import { IPmcData } from "../models/eft/common/IPmcData";
 import { Bonus, HideoutSlot } from "../models/eft/common/tables/IBotBase";
 import {
@@ -35,6 +36,7 @@ export class ProfileFixerService
         @inject("Watermark") protected watermark: Watermark,
         @inject("HideoutHelper") protected hideoutHelper: HideoutHelper,
         @inject("InventoryHelper") protected inventoryHelper: InventoryHelper,
+        @inject("TraderHelper") protected traderHelper: TraderHelper,
         @inject("ItemHelper") protected itemHelper: ItemHelper,
         @inject("LocalisationService") protected localisationService: LocalisationService,
         @inject("TimeUtil") protected timeUtil: TimeUtil,
@@ -718,6 +720,74 @@ export class ProfileFixerService
 
                         break;
                     }
+                }
+            }
+        }
+
+        const clothing = this.databaseServer.getTables().templates.customization;
+        for (const suitId of fullProfile.suits)
+        {
+            if (!clothing[suitId])
+            {
+                this.logger.error(this.localisationService.getText("fixer-mod_item_found", suitId));
+                if (this.coreConfig.fixes.removeModItemsFromProfile)
+                {
+                    fullProfile.suits.splice(fullProfile.suits.indexOf(suitId), 1);
+                    this.logger.warning(`Non-default suit purchase: ${suitId} removed from profile`);
+                }
+            }
+        }
+
+        for (const repeatable of fullProfile.characters.pmc.RepeatableQuests)
+        {
+            for (const activeQuest of repeatable.activeQuests ?? [])
+            {
+                if (!this.traderHelper.traderEnumHasValue(activeQuest.traderId))
+                {
+                    this.logger.error(this.localisationService.getText("fixer-mod_item_found", activeQuest.traderId));
+                    if (this.coreConfig.fixes.removeModItemsFromProfile)
+                    {
+                        this.logger.warning(`Non-default quest: ${activeQuest._id} from trader: ${activeQuest.traderId} removed from RepeatableQuests list in profile`);
+                        repeatable.activeQuests.splice(repeatable.activeQuests.findIndex(x => x._id === activeQuest._id), 1);
+                    }
+
+                    continue;
+                }
+
+                for (const successReward of activeQuest.rewards.Success)
+                {
+                    if (successReward.type === "Item")
+                    {
+                        for (const rewardItem of successReward.items)
+                        {
+                            if (!itemsDb[rewardItem._tpl])
+                            {
+                                this.logger.error(this.localisationService.getText("fixer-mod_item_found", rewardItem._tpl));
+                                if (this.coreConfig.fixes.removeModItemsFromProfile)
+                                {
+                                    this.logger.warning(`Non-default quest: ${activeQuest._id} from trader: ${activeQuest.traderId} removed from RepeatableQuests list in profile`);
+                                    repeatable.activeQuests.splice(repeatable.activeQuests.findIndex(x => x._id === activeQuest._id), 1);
+                                }
+
+                                continue;
+                            }
+                        }
+                    }
+
+                    
+                }
+            }
+        }
+
+        for (const traderId in fullProfile.traderPurchases)
+        {
+            if (!this.traderHelper.traderEnumHasValue(traderId))
+            {
+                this.logger.error(this.localisationService.getText("fixer-mod_item_found", traderId));
+                if (this.coreConfig.fixes.removeModItemsFromProfile)
+                {
+                    this.logger.warning(`Non-default trader: ${traderId} removed from traderPurchases list in profile`);
+                    delete fullProfile.traderPurchases[traderId];
                 }
             }
         }

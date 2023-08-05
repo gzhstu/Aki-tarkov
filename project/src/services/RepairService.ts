@@ -196,7 +196,8 @@ export class RepairService
             throw new Error(`Item ${itemToRepairId} not found, unable to repair`);
         }
 
-        const itemToRepairDetails = this.databaseServer.getTables().templates.items[itemToRepair._tpl];
+        const itemsDb = this.databaseServer.getTables().templates.items;
+        const itemToRepairDetails = itemsDb[itemToRepair._tpl];
         const repairItemIsArmor = (!!itemToRepairDetails._props.ArmorMaterial);
 
         this.repairHelper.updateItemDurability(
@@ -211,7 +212,7 @@ export class RepairService
         for (const repairKit of repairKits)
         {
             const repairKitInInventory = pmcData.Inventory.items.find(x => x._id === repairKit._id);
-            const repairKitDetails = this.databaseServer.getTables().templates.items[repairKitInInventory._tpl];
+            const repairKitDetails = itemsDb[repairKitInInventory._tpl];
             const repairKitReductionAmount = repairKit.count;
 
             this.addMaxResourceToKitIfMissing(repairKitDetails, repairKitInInventory);
@@ -297,6 +298,15 @@ export class RepairService
     protected addMaxResourceToKitIfMissing(repairKitDetails: ITemplateItem, repairKitInInventory: Item): void
     {
         const maxRepairAmount = repairKitDetails._props.MaxRepairResource;
+        if (!repairKitInInventory.upd)
+        {
+            this.logger.debug(`Repair kit: ${repairKitInInventory._id} in inventory lacks upd object, adding`);
+            repairKitInInventory.upd = {
+                RepairKit: {
+                    Resource: maxRepairAmount
+                }
+            };
+        }
         if (!repairKitInInventory.upd.RepairKit?.Resource)
         {
             repairKitInInventory.upd.RepairKit = {
