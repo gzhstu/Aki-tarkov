@@ -8,6 +8,7 @@ import { ConfigTypes } from "../models/enums/ConfigTypes";
 import { IHttpConfig } from "../models/spt/config/IHttpConfig";
 import { ILogger } from "../models/spt/utils/ILogger";
 import { LocalisationService } from "../services/LocalisationService";
+import { JsonUtil } from "../utils/JsonUtil";
 import { RandomUtil } from "../utils/RandomUtil";
 import { ConfigServer } from "./ConfigServer";
 
@@ -20,6 +21,7 @@ export class WebSocketServer
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("ConfigServer") protected configServer: ConfigServer,
         @inject("LocalisationService") protected localisationService: LocalisationService,
+        @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("HttpServerHelper") protected httpServerHelper: HttpServerHelper
     ) 
     {
@@ -56,7 +58,7 @@ export class WebSocketServer
         {
             if (this.isConnectionWebSocket(sessionID))
             {
-                this.webSockets[sessionID].send(JSON.stringify(output));
+                this.webSockets[sessionID].send(this.jsonUtil.serialize(output));
                 this.logger.debug(this.localisationService.getText("websocket-message_sent"));
             }
             else
@@ -74,33 +76,7 @@ export class WebSocketServer
     {
         if (this.randomUtil.getInt(1, 1000) > 999) 
         {
-            const messages = [
-                this.localisationService.getText("server_start_meme_1"),
-                this.localisationService.getText("server_start_meme_2"),
-                this.localisationService.getText("server_start_meme_3"),
-                this.localisationService.getText("server_start_meme_4"),
-                this.localisationService.getText("server_start_meme_5"),
-                this.localisationService.getText("server_start_meme_6"),
-                this.localisationService.getText("server_start_meme_7"),
-                this.localisationService.getText("server_start_meme_8"),
-                this.localisationService.getText("server_start_meme_9"),
-                this.localisationService.getText("server_start_meme_10"),
-                this.localisationService.getText("server_start_meme_11"),
-                this.localisationService.getText("server_start_meme_12"),
-                this.localisationService.getText("server_start_meme_13"),
-                this.localisationService.getText("server_start_meme_14"),
-                this.localisationService.getText("server_start_meme_15"),
-                this.localisationService.getText("server_start_meme_16"),
-                this.localisationService.getText("server_start_meme_17"),
-                this.localisationService.getText("server_start_meme_18"),
-                this.localisationService.getText("server_start_meme_19"),
-                this.localisationService.getText("server_start_meme_20"),
-                this.localisationService.getText("server_start_meme_21"),
-                this.localisationService.getText("server_start_meme_22"),
-                this.localisationService.getText("server_start_meme_23"),
-                this.localisationService.getText("server_start_meme_24")
-            ];
-            return messages[this.randomUtil.getInt(0, messages.length - 1)];
+            return this.localisationService.getRandomTextThatMatchesPartialKey("server_start_meme_");
         }
 
         return (globalThis.G_RELEASE_CONFIGURATION)
@@ -141,7 +117,7 @@ export class WebSocketServer
 
             if (ws.readyState === WebSocket.OPEN) 
             {
-                ws.send(JSON.stringify(this.defaultNotification));
+                ws.send(this.jsonUtil.serialize(this.defaultNotification));
             }
             else 
             {
