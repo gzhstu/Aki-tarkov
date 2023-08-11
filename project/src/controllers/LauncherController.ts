@@ -1,13 +1,16 @@
 import { inject, injectable } from "tsyringe";
 
 import { HttpServerHelper } from "../helpers/HttpServerHelper";
+import { ProfileHelper } from "../helpers/ProfileHelper";
+import { PreAkiModLoader } from "../loaders/PreAkiModLoader";
 import { IChangeRequestData } from "../models/eft/launcher/IChangeRequestData";
 import { ILoginRequestData } from "../models/eft/launcher/ILoginRequestData";
 import { IRegisterData } from "../models/eft/launcher/IRegisterData";
-import { Info } from "../models/eft/profile/IAkiProfile";
+import { Info, ModDetails } from "../models/eft/profile/IAkiProfile";
 import { IConnectResponse } from "../models/eft/profile/IConnectResponse";
 import { ConfigTypes } from "../models/enums/ConfigTypes";
 import { ICoreConfig } from "../models/spt/config/ICoreConfig";
+import { IPackageJsonData } from "../models/spt/mod/IPackageJsonData";
 import { ConfigServer } from "../servers/ConfigServer";
 import { DatabaseServer } from "../servers/DatabaseServer";
 import { SaveServer } from "../servers/SaveServer";
@@ -23,8 +26,10 @@ export class LauncherController
         @inject("HashUtil") protected hashUtil: HashUtil,
         @inject("SaveServer") protected saveServer: SaveServer,
         @inject("HttpServerHelper") protected httpServerHelper: HttpServerHelper,
+        @inject("ProfileHelper") protected profileHelper: ProfileHelper,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("LocalisationService") protected localisationService: LocalisationService,
+        @inject("PreAkiModLoader") protected preAkiModLoader: PreAkiModLoader,
         @inject("ConfigServer") protected configServer: ConfigServer
     )
     {
@@ -159,5 +164,25 @@ export class LauncherController
     public getCompatibleTarkovVersion(): string
     {
         return this.coreConfig.compatibleTarkovVersion;
+    }
+
+    /**
+     * Get the mods the server has currently loaded
+     * @returns Dictionary of mod name and mod details
+     */
+    public getLoadedServerMods(): Record<string, IPackageJsonData>
+    {
+        return this.preAkiModLoader.getImportedModDetails();
+    }
+
+    /**
+     * Get the mods a profile has ever loaded into game with
+     * @param sessionId Player id
+     * @returns Array of mod details
+     */
+    public getServerModsProfileUsed(sessionId: string): ModDetails[]
+    {
+        const profile = this.profileHelper.getFullProfile(sessionId);
+        return profile?.aki?.mods;
     }
 }
