@@ -1,33 +1,33 @@
 import { inject, injectable } from "tsyringe";
 
-import { BotHelper } from "../helpers/BotHelper";
-import { IBotBase } from "../models/eft/common/tables/IBotBase";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { JsonUtil } from "../utils/JsonUtil";
-import { RandomUtil } from "../utils/RandomUtil";
-import { LocalisationService } from "./LocalisationService";
+import { BotHelper } from "@spt-aki/helpers/BotHelper";
+import { IBotBase } from "@spt-aki/models/eft/common/tables/IBotBase";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
 
 @injectable()
 export class BotGenerationCacheService
 {
     protected storedBots: Map<string, IBotBase[]> = new Map();
-    
+
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("BotHelper") protected botHelper: BotHelper
+        @inject("BotHelper") protected botHelper: BotHelper,
     )
-    { }
-    
+    {}
+
     /**
      * Store array of bots in cache, shuffle results before storage
      * @param botsToStore Bots we want to store in the cache
      */
     public storeBots(key: string, botsToStore: IBotBase[]): void
-    {   
-        botsToStore.forEach(e => 
+    {
+        botsToStore.forEach((e) =>
         {
             if (this.storedBots.has(key))
             {
@@ -63,7 +63,7 @@ export class BotGenerationCacheService
 
         return undefined;
     }
-    
+
     /**
      * Remove all cached bot profiles from memory
      */
@@ -71,7 +71,7 @@ export class BotGenerationCacheService
     {
         this.storedBots = new Map();
     }
-    
+
     /**
      * Does cache have a bot with requested key
      * @returns false if empty

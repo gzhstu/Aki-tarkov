@@ -1,13 +1,13 @@
 import { inject, injectable } from "tsyringe";
 
-import { BossLocationSpawn, ILocationBase, Wave } from "../models/eft/common/ILocationBase";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { ILocationConfig } from "../models/spt/config/ILocationConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { JsonUtil } from "../utils/JsonUtil";
-import { RandomUtil } from "../utils/RandomUtil";
+import { BossLocationSpawn, ILocationBase, Wave } from "@spt-aki/models/eft/common/ILocationBase";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { ILocationConfig } from "@spt-aki/models/spt/config/ILocationConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
 
 @injectable()
 export class CustomLocationWaveService
@@ -19,7 +19,7 @@ export class CustomLocationWaveService
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.locationConfig = this.configServer.getConfig(ConfigTypes.LOCATION);
@@ -76,13 +76,15 @@ export class CustomLocationWaveService
             const location: ILocationBase = this.databaseServer.getTables().locations[mapKey].base;
             for (const bossWave of bossWavesToApply[mapKey])
             {
-                if (location.BossLocationSpawn.find(x => x.sptId === bossWave.sptId))
+                if (location.BossLocationSpawn.find((x) => x.sptId === bossWave.sptId))
                 {
                     // Already exists, skip
                     continue;
                 }
                 location.BossLocationSpawn.push(bossWave);
-                this.logger.debug(`Added custom boss wave to ${mapKey} of type ${bossWave.BossName}, time: ${bossWave.Time}, chance: ${bossWave.BossChance}, zone: ${bossWave.BossZone}`);
+                this.logger.debug(
+                    `Added custom boss wave to ${mapKey} of type ${bossWave.BossName}, time: ${bossWave.Time}, chance: ${bossWave.BossChance}, zone: ${bossWave.BossZone}`,
+                );
             }
         }
 
@@ -91,7 +93,7 @@ export class CustomLocationWaveService
             const location: ILocationBase = this.databaseServer.getTables().locations[mapKey].base;
             for (const normalWave of normalWavesToApply[mapKey])
             {
-                if (location.waves.find(x => x.sptId === normalWave.sptId))
+                if (location.waves.find((x) => x.sptId === normalWave.sptId))
                 {
                     // Already exists, skip
                     continue;

@@ -1,11 +1,12 @@
+import path from "node:path";
 import { I18n } from "i18n";
 import { inject, injectable } from "tsyringe";
 
-import { ILocaleConfig } from "../models/spt/config/ILocaleConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { RandomUtil } from "../utils/RandomUtil";
-import { LocaleService } from "./LocaleService";
+import { ILocaleConfig } from "@spt-aki/models/spt/config/ILocaleConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { LocaleService } from "@spt-aki/services/LocaleService";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
 
 /**
  * Handles translating server text into different langauges
@@ -20,18 +21,21 @@ export class LocalisationService
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
-        @inject("LocaleService") protected localeService: LocaleService
+        @inject("LocaleService") protected localeService: LocaleService,
     )
     {
-        const localeFileDirectory = (globalThis.G_RELEASE_CONFIGURATION) ? "Aki_Data/Server/database/locales/server" : "./assets/database/locales/server";
-        this.i18n = new I18n(
-            {
-                locales: this.localeService.getServerSupportedLocales(),
-                defaultLocale: "en",
-                directory: localeFileDirectory,
-                retryInDefaultLocale: true
-            }
+        const localeFileDirectory = path.join(
+            process.cwd(),
+            globalThis.G_RELEASE_CONFIGURATION
+                ? "Aki_Data/Server/database/locales/server"
+                : "./assets/database/locales/server",
         );
+        this.i18n = new I18n({
+            locales: this.localeService.getServerSupportedLocales(),
+            defaultLocale: "en",
+            directory: localeFileDirectory,
+            retryInDefaultLocale: true,
+        });
 
         this.i18n.setLocale(this.localeService.getDesiredServerLocale());
     }
@@ -53,7 +57,7 @@ export class LocalisationService
      */
     public getKeys(): string[]
     {
-        return Object.keys(this.databaseServer.getTables().locales.server["en"]);
+        return Object.keys(this.databaseServer.getTables().locales.server.en);
     }
 
     /**
@@ -63,7 +67,9 @@ export class LocalisationService
      */
     public getRandomTextThatMatchesPartialKey(partialKey: string): string
     {
-        const filteredKeys = Object.keys(this.databaseServer.getTables().locales.server["en"]).filter(x => x.startsWith(partialKey));
+        const filteredKeys = Object.keys(this.databaseServer.getTables().locales.server.en).filter((x) =>
+            x.startsWith(partialKey)
+        );
         const chosenKey = this.randomUtil.getArrayValue(filteredKeys);
 
         return this.getText(chosenKey);

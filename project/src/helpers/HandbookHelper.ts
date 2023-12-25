@@ -1,7 +1,9 @@
 import { inject, injectable } from "tsyringe";
 
-import { Money } from "../models/enums/Money";
-import { DatabaseServer } from "../servers/DatabaseServer";
+import { Category } from "@spt-aki/models/eft/common/tables/IHandbookBase";
+import { Money } from "@spt-aki/models/enums/Money";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 class LookupItem<T, I>
 {
@@ -29,11 +31,14 @@ export class LookupCollection
 
 @injectable()
 export class HandbookHelper
-{    
+{
     protected lookupCacheGenerated = false;
     protected handbookPriceCache = new LookupCollection();
 
-    constructor(@inject("DatabaseServer") protected databaseServer: DatabaseServer)
+    constructor(
+        @inject("DatabaseServer") protected databaseServer: DatabaseServer,
+        @inject("JsonUtil") protected jsonUtil: JsonUtil
+    )
     {}
 
     /**
@@ -41,7 +46,7 @@ export class HandbookHelper
      */
     public hydrateLookup(): void
     {
-        const handbookDb = this.databaseServer.getTables().templates.handbook;
+        const handbookDb = this.jsonUtil.clone(this.databaseServer.getTables().templates.handbook);
         for (const handbookItem of handbookDb.Items)
         {
             this.handbookPriceCache.items.byId.set(handbookItem.Id, handbookItem.Price);
@@ -49,9 +54,7 @@ export class HandbookHelper
             {
                 this.handbookPriceCache.items.byParent.set(handbookItem.ParentId, []);
             }
-            this.handbookPriceCache.items.byParent
-                .get(handbookItem.ParentId)
-                .push(handbookItem.Id);
+            this.handbookPriceCache.items.byParent.get(handbookItem.ParentId).push(handbookItem.Id);
         }
 
         for (const handbookCategory of handbookDb.Categories)
@@ -63,9 +66,7 @@ export class HandbookHelper
                 {
                     this.handbookPriceCache.categories.byParent.set(handbookCategory.ParentId, []);
                 }
-                this.handbookPriceCache.categories.byParent
-                    .get(handbookCategory.ParentId)
-                    .push(handbookCategory.Id);
+                this.handbookPriceCache.categories.byParent.get(handbookCategory.ParentId).push(handbookCategory.Id);
             }
         }
     }
@@ -89,16 +90,21 @@ export class HandbookHelper
             return this.handbookPriceCache.items.byId.get(tpl);
         }
 
-        const handbookItem = this.databaseServer.getTables().templates.handbook.Items.find(x => x.Id === tpl);
+        const handbookItem = this.databaseServer.getTables().templates.handbook.Items.find((x) => x.Id === tpl);
+        if (!handbookItem)
+        {
+            const newValue = 0;
+            this.handbookPriceCache.items.byId.set(tpl, newValue);
 
-        return handbookItem
-            ? handbookItem.Price
-            : 1;
+            return newValue;
+        }
+
+        return handbookItem.Price;
     }
 
     /**
      * Get all items in template with the given parent category
-     * @param parentId 
+     * @param parentId
      * @returns string array
      */
     public templatesWithParent(parentId: string): string[]
@@ -108,7 +114,7 @@ export class HandbookHelper
 
     /**
      * Does category exist in handbook cache
-     * @param category 
+     * @param category
      * @returns true if exists in cache
      */
     public isCategory(category: string): boolean
@@ -118,7 +124,7 @@ export class HandbookHelper
 
     /**
      * Get all items associated with a categories parent
-     * @param categoryParent 
+     * @param categoryParent
      * @returns string array
      */
     public childrenCategories(categoryParent: string): string[]
@@ -158,5 +164,10 @@ export class HandbookHelper
         // Get price of currency from handbook
         const price = this.getTemplatePrice(currencyTypeTo);
         return price ? Math.round(roubleCurrencyCount / price) : 0;
+    }
+
+    public getCategoryById(handbookId: string): Category
+    {
+        return this.databaseServer.getTables().templates.handbook.Categories.find(x => x.Id === handbookId);
     }
 }

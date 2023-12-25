@@ -1,14 +1,14 @@
-import { WindDirection } from "../../../models/enums/WindDirection";
+import { WindDirection } from "@spt-aki/models/enums/WindDirection";
 
 export interface IWeatherData
 {
     acceleration: number;
     time: string;
     date: string;
-    weather?: IWeather
+    weather?: IWeather;
 }
 
-export  interface IWeather 
+export interface IWeather
 {
     pressure: number;
     temp: number;

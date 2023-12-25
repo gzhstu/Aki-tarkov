@@ -7,33 +7,19 @@
         {
             "name": "Debug",
             "type": "node",
+            "runtimeVersion": "18.15.0",
             "request": "launch",
             "runtimeExecutable": "npm",
             "sourceMaps": true,
             "runtimeArgs": [
                 "run",
-                "test:debug"
+                "run:debug"
             ],
             "outFiles": [
                 "!**/node_modules/**"
             ],
             "cwd": "${workspaceFolder}",
             "outputCapture": "std"
-        },
-        {
-            "name": "Run Jest UnitTests",
-            "type": "node",
-            "request": "launch",
-            "program": "${workspaceFolder}/node_modules/.bin/jest",
-            "args": [
-                "--runInBand"
-            ],
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "disableOptimisticBPs": true,
-            "windows": {
-                "program": "${workspaceFolder}/node_modules/jest/bin/jest",
-            }
         }
     ]
 }

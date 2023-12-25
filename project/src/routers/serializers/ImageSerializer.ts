@@ -1,20 +1,18 @@
-import { IncomingMessage, ServerResponse } from "http";
+import { IncomingMessage, ServerResponse } from "node:http";
 import { inject, injectable } from "tsyringe";
 
-import { Serializer } from "../../di/Serializer";
-import { ImageRouter } from "../ImageRouter";
+import { Serializer } from "@spt-aki/di/Serializer";
+import { ImageRouter } from "@spt-aki/routers/ImageRouter";
 
 @injectable()
-export class ImageSerializer extends Serializer 
+export class ImageSerializer extends Serializer
 {
-    constructor(
-        @inject("ImageRouter") protected imageRouter: ImageRouter
-    )
+    constructor(@inject("ImageRouter") protected imageRouter: ImageRouter)
     {
         super();
     }
 
-    public override serialize(sessionID: string, req: IncomingMessage, resp: ServerResponse, body: any): void 
+    public override serialize(sessionID: string, req: IncomingMessage, resp: ServerResponse, body: any): void
     {
         this.imageRouter.sendImage(sessionID, req, resp, body);
     }

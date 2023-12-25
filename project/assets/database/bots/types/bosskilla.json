@@ -28,15 +28,15 @@
       "Headwear": 100,
       "Holster": 100,
       "Pockets": 100,
-      "Scabbard": 15,
+      "Scabbard": 16,
       "SecondPrimaryWeapon": 0,
       "SecuredContainer": 100,
       "TacticalVest": 100
     },
     "mods": {
-      "mod_charge": 15,
+      "mod_charge": 14,
       "mod_equipment": 100,
-      "mod_foregrip": 9,
+      "mod_foregrip": 8,
       "mod_launcher": 0,
       "mod_magazine": 100,
       "mod_mount": 0,
@@ -48,7 +48,7 @@
       "mod_reciever": 100,
       "mod_scope": 39,
       "mod_sight_front": 0,
-      "mod_sight_rear": 54,
+      "mod_sight_rear": 53,
       "mod_stock": 100,
       "mod_stock_001": 100,
       "mod_stock_akms": 100,
@@ -1999,33 +1999,86 @@
   ],
   "generation": {
     "items": {
+      "backpackLoot": {
+        "weights": {
+          "0": 1,
+          "1": 2,
+          "2": 5,
+          "3": 3,
+          "4": 1,
+          "5": 1,
+          "6": 1,
+          "7": 0
+        },
+        "whitelist": []
+      },
       "drugs": {
-        "max": 1,
-        "min": 0
+        "weights": {
+          "0": 1,
+          "1": 2
+        },
+        "whitelist": []
       },
       "grenades": {
-        "max": 5,
-        "min": 0
+        "weights": {
+          "0": 1,
+          "1": 2,
+          "2": 3,
+          "3": 3,
+          "4": 1,
+          "5": 1
+        },
+        "whitelist": []
       },
       "healing": {
-        "max": 2,
-        "min": 1
-      },
-      "looseLoot": {
-        "max": 10,
-        "min": 4
+        "weights": {
+          "0": 2,
+          "1": 1,
+          "2": 1
+        },
+        "whitelist": []
       },
       "magazines": {
-        "max": 3,
-        "min": 3
+        "weights": {
+          "0": 0,
+          "1": 0,
+          "2": 5,
+          "3": 6
+        },
+        "whitelist": []
+      },
+      "pocketLoot": {
+        "weights": {
+          "0": 1,
+          "1": 7,
+          "2": 4,
+          "3": 1,
+          "4": 1
+        },
+        "whitelist": []
       },
       "specialItems": {
-        "max": 0,
-        "min": 0
+        "weights": {
+          "0": 0
+        },
+        "whitelist": []
       },
       "stims": {
-        "max": 1,
-        "min": 0
+        "weights": {
+          "0": 5,
+          "1": 1
+        },
+        "whitelist": []
+      },
+      "vestLoot": {
+        "weights": {
+          "0": 1,
+          "1": 3,
+          "2": 4,
+          "3": 1,
+          "4": 1
+        },
+        "whitelist": []
       }
     }
   },
@@ -2078,20 +2131,21 @@
   "inventory": {
     "Ammo": {
       "Caliber545x39": {
-        "56dff026d2720bb8668b4567": 1,
-        "56dff061d2720bb5668b4567": 1,
-        "5c0d5e4486f77478390952fe": 1
+        "56dff026d2720bb8668b4567": 509,
+        "56dff061d2720bb5668b4567": 1273,
+        "5c0d5e4486f77478390952fe": 228
       },
       "Caliber762x25TT": {
         "5736026a245977644601dc61": 1
       },
       "Caliber762x39": {
-        "59e0d99486f7744a32234762": 1,
-        "59e4cf5286f7741778269d8a": 1
+        "59e0d99486f7744a32234762": 6,
+        "59e4cf5286f7741778269d8a": 373,
+        "64b7af434b75259c590fa893": 22
       },
       "Caliber9x19PARA": {
-        "5a3c16fe86f77452b62de32a": 1,
-        "5c925fa22e221601da359b7b": 1
+        "5a3c16fe86f77452b62de32a": 334,
+        "5c925fa22e221601da359b7b": 67
       }
     },
     "equipment": {
@@ -2104,9 +2158,9 @@
       "Eyewear": {},
       "FaceCover": {},
       "FirstPrimaryWeapon": {
-        "59984ab886f7743e98271174": 2,
-        "59ff346386f77477562ff5e2": 3,
-        "5beed0f50db834001c062b12": 17
+        "59984ab886f7743e98271174": 401,
+        "59ff346386f77477562ff5e2": 401,
+        "5beed0f50db834001c062b12": 2010
       },
       "Headwear": {
         "5c0e874186f7745dc7616606": 1
@@ -2125,8 +2179,8 @@
         "5c0a794586f77461c458f892": 1
       },
       "TacticalVest": {
-        "5c0e9f2c86f77432297fe0a3": 1,
-        "5ca20abf86f77418567a43f2": 1
+        "5c0e9f2c86f77432297fe0a3": 699,
+        "5ca20abf86f77418567a43f2": 707
       }
     },
     "items": {
@@ -2250,16 +2304,16 @@
         "5a0eeb1a86f774688b70aa5c",
         "5a0dc95c86f77452440fc675",
         "5ad5d20586f77449be26d877",
-        "5d80c8f586f77440373c4ed0",
         "5d95d6fa86f77424484aa5e9",
+        "5d80c8f586f77440373c4ed0",
         "5a0ec70e86f7742c0b518fba",
         "63a39667c9b3aa4b61683e98",
         "5c1d0d6d86f7744bb2683e1f",
         "63a39e1d234195315d4020bd",
         "5d947d4e86f774447b415895",
         "5a0eebed86f77461230ddb3d",
-        "5c1e2a1e86f77431ea0ea84c",
         "5ad5db3786f7743568421cce",
+        "5c1e2a1e86f77431ea0ea84c",
         "5a0eb38b86f774153b320eb0",
         "5d80ccac86f77470841ff452",
         "5c1f79a086f7746ed066fb8f",
@@ -2297,8 +2351,27 @@
         "5780cf692459777de4559321",
         "63a39dfe3901f439517cafba",
         "5a13ee1986f774794d4c14cd",
+        "62a09ec84f842e1bd12da3f2",
         "5ed5166ad380ab312177c100",
-        "62a09ec84f842e1bd12da3f2"
+        "5a0eb6ac86f7743124037a28",
+        "5d80ca9086f774403a401e40",
+        "63a39f18c2d53c2c6839c1d3",
+        "63a39f08cd6db0635c197600",
+        "63a39fd1c9b3aa4b61683efb",
+        "5a13f35286f77413ef1436b0",
+        "64ccc1f4ff54fb38131acf27",
+        "5a0ee72c86f77436955d3435",
+        "64ccc268c41e91416064ebc7",
+        "64ccc1fe088064307e14a6f7",
+        "5780cf7f2459777de4559322",
+        "59387a4986f77401cc236e62",
+        "5ede7b0c6d23e5473e6e8c66",
+        "5a0eed4386f77405112912aa",
+        "5d80c60f86f77440373c4ece",
+        "5e42c71586f7747f245e1343",
+        "5ad7217186f7746744498875",
+        "64ccc25f95763a1ae376e447",
+        "5a0ee4b586f7743698200d22"
       ],
       "SecuredContainer": [
         "5c0d5e4486f77478390952fe",
@@ -2308,7 +2381,8 @@
         "59e4cf5286f7741778269d8a",
         "5c925fa22e221601da359b7b",
         "5a3c16fe86f77452b62de32a",
-        "59e0d99486f7744a32234762"
+        "59e0d99486f7744a32234762",
+        "64b7af434b75259c590fa893"
       ],
       "SpecialLoot": [],
       "TacticalVest": [

@@ -1,80 +1,83 @@
-import { Ixyz } from "../Ixyz";
-import { Item } from "./IItem";
+import { Ixyz } from "@spt-aki/models/eft/common/Ixyz";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
 
-export interface ILootBase 
+export interface ILootBase
 {
-    staticAmmo: Record<string, IStaticAmmoDetails[]>
-    staticContainers: Record<string, IStaticContainerDetails>
-    staticLoot: Record<string, IStaticLootDetails>
+    staticAmmo: Record<string, IStaticAmmoDetails[]>;
+    staticContainers: Record<string, IStaticContainerDetails>;
+    staticLoot: Record<string, IStaticLootDetails>;
 }
 
-export interface IStaticAmmoDetails 
+export interface IStaticAmmoDetails
 {
-    tpl: string
-    relativeProbability: number
+    tpl: string;
+    relativeProbability: number;
 }
 
-export interface IStaticContainerDetails 
+export interface IStaticContainerDetails
 {
-    staticWeapons: IStaticWeaponProps[]
-    staticContainers: IStaticContainerProps[]
-    staticForced: IStaticForcedProps[]
+    staticWeapons: IStaticWeaponProps[];
+    staticContainers: IStaticContainerData[];
+    staticForced: IStaticForcedProps[];
 }
 
-export interface IStaticWeaponProps 
+export interface IStaticContainerData
 {
-    Id: string
-    IsStatic: boolean
-    useGravity: boolean
-    randomRotation: boolean
-    Position: Ixyz
-    Rotation: Ixyz
-    IsGroupPosition: boolean
-    GroupPositions: any[]
-    Root: string
-    Items: Item[]
+    probability: number;
+    template: IStaticContainerProps;
 }
 
-export interface IStaticContainerProps 
+export interface IStaticPropsBase
 {
-    Id: string
-    IsStatic: boolean
-    useGravity: boolean
-    randomRotation: boolean
-    Position: Ixyz
-    Rotation: Ixyz
-    IsGroupPosition: boolean
-    GroupPositions: any[]
-    Root: string
-    Items: StaticItem[]
+    Id: string;
+    IsContainer: boolean;
+    useGravity: boolean;
+    randomRotation: boolean;
+    Position: Ixyz;
+    Rotation: Ixyz;
+    IsGroupPosition: boolean;
+    IsAlwaysSpawn: boolean;
+    GroupPositions: any[];
+    Root: string;
+    Items: any[];
 }
 
-export interface StaticItem 
+export interface IStaticWeaponProps extends IStaticPropsBase
 {
-    _id: string
-    _tpl: string
+    Items: Item[];
 }
 
-export interface IStaticForcedProps 
+export interface IStaticContainerProps extends IStaticPropsBase
 {
-    containerId: string
-    itemTpl: string
+    Items: StaticItem[];
 }
 
-export interface IStaticLootDetails 
+export interface StaticItem
 {
-    itemcountDistribution: ItemCountDistribution[]
-    itemDistribution: ItemDistribution[]
+    _id: string;
+    _tpl: string;
 }
 
-export interface ItemCountDistribution 
+export interface IStaticForcedProps
 {
-    count: number
-    relativeProbability: number
+    containerId: string;
+    itemTpl: string;
 }
 
-export interface ItemDistribution 
+export interface IStaticLootDetails
 {
-    tpl: string
-    relativeProbability: number
+    itemcountDistribution: ItemCountDistribution[];
+    itemDistribution: ItemDistribution[];
+}
+
+export interface ItemCountDistribution
+{
+    count: number;
+    relativeProbability: number;
+}
+
+export interface ItemDistribution
+{
+    tpl: string;
+    relativeProbability: number;
 }

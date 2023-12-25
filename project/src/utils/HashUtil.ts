@@ -1,14 +1,13 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { inject, injectable } from "tsyringe";
-import { TimeUtil } from "./TimeUtil";
+
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class HashUtil
 {
-    constructor(
-        @inject("TimeUtil") protected timeUtil: TimeUtil
-    )
-    { }
+    constructor(@inject("TimeUtil") protected timeUtil: TimeUtil)
+    {}
 
     /**
      * Create a 24 character id using the sha256 algorithm + current timestamp
@@ -44,5 +43,12 @@ export class HashUtil
         const hashSum = crypto.createHash(algorithm);
         hashSum.update(data);
         return hashSum.digest("hex");
+    }
+
+    public generateAccountId(): number
+    {
+        const min = 1;
+        const max = 1000;
+        return (max > min) ? Math.floor(Math.random() * (max - min + 1) + min) : min;
     }
 }

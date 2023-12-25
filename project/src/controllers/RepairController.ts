@@ -1,20 +1,18 @@
 import { inject, injectable } from "tsyringe";
 
-import { QuestHelper } from "../helpers/QuestHelper";
-import { RepairHelper } from "../helpers/RepairHelper";
-import { TraderHelper } from "../helpers/TraderHelper";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { IRepairActionDataRequest } from "../models/eft/repair/IRepairActionDataRequest";
-import {
-    ITraderRepairActionDataRequest
-} from "../models/eft/repair/ITraderRepairActionDataRequest";
-import { IRepairConfig } from "../models/spt/config/IRepairConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { EventOutputHolder } from "../routers/EventOutputHolder";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { PaymentService } from "../services/PaymentService";
-import { RepairService } from "../services/RepairService";
+import { QuestHelper } from "@spt-aki/helpers/QuestHelper";
+import { RepairHelper } from "@spt-aki/helpers/RepairHelper";
+import { TraderHelper } from "@spt-aki/helpers/TraderHelper";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { IRepairActionDataRequest } from "@spt-aki/models/eft/repair/IRepairActionDataRequest";
+import { ITraderRepairActionDataRequest } from "@spt-aki/models/eft/repair/ITraderRepairActionDataRequest";
+import { IRepairConfig } from "@spt-aki/models/spt/config/IRepairConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { EventOutputHolder } from "@spt-aki/routers/EventOutputHolder";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { PaymentService } from "@spt-aki/services/PaymentService";
+import { RepairService } from "@spt-aki/services/RepairService";
 
 @injectable()
 export class RepairController
@@ -29,9 +27,9 @@ export class RepairController
         @inject("TraderHelper") protected traderHelper: TraderHelper,
         @inject("PaymentService") protected paymentService: PaymentService,
         @inject("RepairHelper") protected repairHelper: RepairHelper,
-        @inject("RepairService") protected repairService: RepairService
+        @inject("RepairService") protected repairService: RepairService,
     )
-    { }
+    {}
 
     /**
      * Handle TraderRepair event
@@ -41,16 +39,27 @@ export class RepairController
      * @param pmcData player profile
      * @returns item event router action
      */
-    public traderRepair(sessionID: string, body: ITraderRepairActionDataRequest, pmcData: IPmcData): IItemEventRouterResponse
+    public traderRepair(
+        sessionID: string,
+        body: ITraderRepairActionDataRequest,
+        pmcData: IPmcData,
+    ): IItemEventRouterResponse
     {
         const output = this.eventOutputHolder.getOutput(sessionID);
-        
+
         // find the item to repair
         for (const repairItem of body.repairItems)
         {
             const repairDetails = this.repairService.repairItemByTrader(sessionID, pmcData, repairItem, body.tid);
 
-            this.repairService.payForRepair(sessionID, pmcData, repairItem._id, repairDetails.repairCost, body.tid, output);
+            this.repairService.payForRepair(
+                sessionID,
+                pmcData,
+                repairItem._id,
+                repairDetails.repairCost,
+                body.tid,
+                output,
+            );
 
             if (output.warnings.length > 0)
             {
@@ -80,7 +89,13 @@ export class RepairController
         const output = this.eventOutputHolder.getOutput(sessionID);
 
         // repair item
-        const repairDetails = this.repairService.repairItemByKit(sessionID, pmcData, body.repairKitsInfo, body.target, output);
+        const repairDetails = this.repairService.repairItemByKit(
+            sessionID,
+            pmcData,
+            body.repairKitsInfo,
+            body.target,
+            output,
+        );
 
         this.repairService.addBuffToItem(repairDetails, pmcData);
 

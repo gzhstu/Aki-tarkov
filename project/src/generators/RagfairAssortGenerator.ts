@@ -1,16 +1,16 @@
 import { inject, injectable } from "tsyringe";
 
-import { ItemHelper } from "../helpers/ItemHelper";
-import { IPreset } from "../models/eft/common/IGlobals";
-import { Item } from "../models/eft/common/tables/IItem";
-import { BaseClasses } from "../models/enums/BaseClasses";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { IRagfairConfig } from "../models/spt/config/IRagfairConfig";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { SeasonalEventService } from "../services/SeasonalEventService";
-import { HashUtil } from "../utils/HashUtil";
-import { JsonUtil } from "../utils/JsonUtil";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { IPreset } from "@spt-aki/models/eft/common/IGlobals";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { BaseClasses } from "@spt-aki/models/enums/BaseClasses";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { IRagfairConfig } from "@spt-aki/models/spt/config/IRagfairConfig";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { SeasonalEventService } from "@spt-aki/services/SeasonalEventService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class RagfairAssortGenerator
@@ -24,7 +24,7 @@ export class RagfairAssortGenerator
         @inject("ItemHelper") protected itemHelper: ItemHelper,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("SeasonalEventService") protected seasonalEventService: SeasonalEventService,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.ragfairConfig = this.configServer.getConfig(ConfigTypes.RAGFAIR);
@@ -72,19 +72,27 @@ export class RagfairAssortGenerator
             BaseClasses.SORTING_TABLE,
             BaseClasses.INVENTORY,
             BaseClasses.STATIONARY_CONTAINER,
-            BaseClasses.POCKETS
+            BaseClasses.POCKETS,
         ];
 
         const seasonalEventActive = this.seasonalEventService.seasonalEventEnabled();
-        const seasonalItemTplBlacklist = this.seasonalEventService.getSeasonalEventItemsToBlock();
+        const seasonalItemTplBlacklist = this.seasonalEventService.getAllSeasonalEventItems();
         for (const item of items)
         {
+            if (item._type === "Node")
+            {
+                continue;
+            }
+
             if (!this.itemHelper.isValidItem(item._id, ragfairItemInvalidBaseTypes))
             {
                 continue;
             }
 
-            if (this.ragfairConfig.dynamic.removeSeasonalItemsWhenNotInEvent && !seasonalEventActive && seasonalItemTplBlacklist.includes(item._id))
+            if (
+                this.ragfairConfig.dynamic.removeSeasonalItemsWhenNotInEvent && !seasonalEventActive
+                && seasonalItemTplBlacklist.includes(item._id)
+            )
             {
                 continue;
             }
@@ -99,7 +107,7 @@ export class RagfairAssortGenerator
 
         return results;
     }
-    
+
     /**
      * Get presets from globals.json
      * @returns Preset object array
@@ -116,9 +124,9 @@ export class RagfairAssortGenerator
      */
     protected getDefaultPresets(): IPreset[]
     {
-        return this.getPresets().filter(x => x._encyclopedia);
+        return this.getPresets().filter((x) => x._encyclopedia);
     }
-    
+
     /**
      * Create a base assort item and return it with populated values + 999999 stack count + unlimited count = true
      * @param tplId tplid to add to item
@@ -132,10 +140,7 @@ export class RagfairAssortGenerator
             _tpl: tplId,
             parentId: "hideout",
             slotId: "hideout",
-            upd: {
-                StackObjectsCount: 99999999,
-                UnlimitedCount: true
-            }
+            upd: { StackObjectsCount: 99999999, UnlimitedCount: true },
         };
     }
 }

@@ -1,19 +1,16 @@
 import { inject, injectable } from "tsyringe";
 
-import { RepairController } from "../controllers/RepairController";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { IRepairActionDataRequest } from "../models/eft/repair/IRepairActionDataRequest";
-import {
-    ITraderRepairActionDataRequest
-} from "../models/eft/repair/ITraderRepairActionDataRequest";
+import { RepairController } from "@spt-aki/controllers/RepairController";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { IRepairActionDataRequest } from "@spt-aki/models/eft/repair/IRepairActionDataRequest";
+import { ITraderRepairActionDataRequest } from "@spt-aki/models/eft/repair/ITraderRepairActionDataRequest";
 
 @injectable()
 export class RepairCallbacks
 {
-    constructor(
-        @inject("RepairController") protected repairController: RepairController)
-    { }
+    constructor(@inject("RepairController") protected repairController: RepairController)
+    {}
 
     /**
      * Handle TraderRepair event
@@ -23,7 +20,11 @@ export class RepairCallbacks
      * @param sessionID Session id
      * @returns IItemEventRouterResponse
      */
-    public traderRepair(pmcData: IPmcData, traderRepairRequest: ITraderRepairActionDataRequest, sessionID: string): IItemEventRouterResponse
+    public traderRepair(
+        pmcData: IPmcData,
+        traderRepairRequest: ITraderRepairActionDataRequest,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.repairController.traderRepair(sessionID, traderRepairRequest, pmcData);
     }
@@ -36,7 +37,11 @@ export class RepairCallbacks
      * @param sessionID Session id
      * @returns IItemEventRouterResponse
      */
-    public repair(pmcData: IPmcData, repairRequest: IRepairActionDataRequest, sessionID: string): IItemEventRouterResponse
+    public repair(
+        pmcData: IPmcData,
+        repairRequest: IRepairActionDataRequest,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.repairController.repairWithKit(sessionID, repairRequest, pmcData);
     }

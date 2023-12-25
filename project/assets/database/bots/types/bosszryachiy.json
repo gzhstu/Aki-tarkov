@@ -39,8 +39,8 @@
       "mod_foregrip": 100,
       "mod_magazine": 100,
       "mod_mount": 0,
-      "mod_mount_000": 34,
-      "mod_mount_001": 3,
+      "mod_mount_000": 33,
+      "mod_mount_001": 2,
       "mod_mount_002": 1,
       "mod_mount_003": 100,
       "mod_muzzle": 100,
@@ -49,8 +49,8 @@
       "mod_sight_front": 0,
       "mod_sight_rear": 0,
       "mod_stock": 75,
-      "mod_tactical": 3,
-      "mod_tactical_000": 5,
+      "mod_tactical": 2,
+      "mod_tactical_000": 3,
       "mod_tactical_001": 0,
       "mod_tactical_002": 100
     }
@@ -375,6 +375,8 @@
         "COVER_SELF_ALWAYS_IF_DAMAGED": false,
         "DAMAGE_REDUCTION_TIME_SEC": 20,
         "DANGER_POINT_CHOOSE_COEF": 1,
+        "DEFAULT_ENEMY_BEAR": true,
+        "DEFAULT_ENEMY_USEC": true,
         "DEFAULT_SAVAGE_BEHAVIOUR": "Attack",
         "DIST_TO_ENEMY_YO_CAN_HEAL": 30,
         "DIST_TO_FOUND_SQRT": 400,
@@ -854,6 +856,8 @@
         "COVER_SELF_ALWAYS_IF_DAMAGED": false,
         "DAMAGE_REDUCTION_TIME_SEC": 20,
         "DANGER_POINT_CHOOSE_COEF": 1,
+        "DEFAULT_ENEMY_BEAR": true,
+        "DEFAULT_ENEMY_USEC": true,
         "DEFAULT_SAVAGE_BEHAVIOUR": "Attack",
         "DIST_TO_ENEMY_YO_CAN_HEAL": 30,
         "DIST_TO_FOUND_SQRT": 400,
@@ -1333,6 +1337,8 @@
         "COVER_SELF_ALWAYS_IF_DAMAGED": false,
         "DAMAGE_REDUCTION_TIME_SEC": 20,
         "DANGER_POINT_CHOOSE_COEF": 1,
+        "DEFAULT_ENEMY_BEAR": true,
+        "DEFAULT_ENEMY_USEC": true,
         "DEFAULT_SAVAGE_BEHAVIOUR": "Attack",
         "DIST_TO_ENEMY_YO_CAN_HEAL": 30,
         "DIST_TO_FOUND_SQRT": 400,
@@ -1812,6 +1818,8 @@
         "COVER_SELF_ALWAYS_IF_DAMAGED": false,
         "DAMAGE_REDUCTION_TIME_SEC": 20,
         "DANGER_POINT_CHOOSE_COEF": 1,
+        "DEFAULT_ENEMY_BEAR": true,
+        "DEFAULT_ENEMY_USEC": true,
         "DEFAULT_SAVAGE_BEHAVIOUR": "Attack",
         "DIST_TO_ENEMY_YO_CAN_HEAL": 30,
         "DIST_TO_FOUND_SQRT": 400,
@@ -1990,33 +1998,92 @@
   ],
   "generation": {
     "items": {
+      "backpackLoot": {
+        "weights": {
+          "0": 1,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 1,
+          "5": 1,
+          "6": 1,
+          "7": 0
+        },
+        "whitelist": []
+      },
       "drugs": {
-        "max": 1,
-        "min": 0
+        "weights": {
+          "0": 1,
+          "1": 2,
+          "2": 0
+        },
+        "whitelist": []
       },
       "grenades": {
-        "max": 5,
-        "min": 0
+        "weights": {
+          "0": 1,
+          "1": 2,
+          "2": 1,
+          "3": 1,
+          "4": 0,
+          "5": 0
+        },
+        "whitelist": []
       },
       "healing": {
-        "max": 2,
-        "min": 1
-      },
-      "looseLoot": {
-        "max": 4,
-        "min": 1
+        "weights": {
+          "0": 1,
+          "1": 2,
+          "2": 1
+        },
+        "whitelist": []
       },
       "magazines": {
-        "max": 4,
-        "min": 2
+        "weights": {
+          "0": 0,
+          "1": 0,
+          "2": 1,
+          "3": 3,
+          "4": 1
+        },
+        "whitelist": []
+      },
+      "pocketLoot": {
+        "weights": {
+          "0": 1,
+          "1": 6,
+          "2": 3,
+          "3": 1,
+          "4": 1
+        },
+        "whitelist": []
       },
       "specialItems": {
-        "max": 0,
-        "min": 0
+        "weights": {
+          "0": 1,
+          "1": 0
+        },
+        "whitelist": []
       },
       "stims": {
-        "max": 1,
-        "min": 0
+        "weights": {
+          "0": 2,
+          "1": 1,
+          "2": 0
+        },
+        "whitelist": []
+      },
+      "vestLoot": {
+        "weights": {
+          "0": 1,
+          "1": 1,
+          "2": 2,
+          "3": 1,
+          "4": 0,
+          "5": 0,
+          "6": 0
+        },
+        "whitelist": []
       }
     }
   },
@@ -2111,8 +2178,8 @@
         "5fc382a9d724d907e2077dab": 1
       },
       "Caliber9x21": {
-        "5a269f97c4a282000b151807": 1,
-        "5a26abfac4a28232980eabff": 1
+        "5a269f97c4a282000b151807": 13,
+        "5a26abfac4a28232980eabff": 968
       }
     },
     "equipment": {
@@ -2125,8 +2192,8 @@
         "63626d904aa74b8fe30ab426": 1
       },
       "FirstPrimaryWeapon": {
-        "5c46fbd72e2216398b5a8c9c": 1,
-        "627e14b21713922ded6f2c15": 1
+        "5c46fbd72e2216398b5a8c9c": 968,
+        "627e14b21713922ded6f2c15": 13
       },
       "Headwear": {
         "636270263f2495c26f00b007": 1
@@ -2139,8 +2206,8 @@
       },
       "Scabbard": {},
       "SecondPrimaryWeapon": {
-        "57dc2fa62459775949412633": 1,
-        "5ba26383d4351e00334c93d9": 1
+        "57dc2fa62459775949412633": 968,
+        "5ba26383d4351e00334c93d9": 13
       },
       "SecuredContainer": {
         "5c0a794586f77461c458f892": 1

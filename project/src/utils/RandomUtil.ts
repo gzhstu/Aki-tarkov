@@ -1,36 +1,35 @@
 import { inject, injectable } from "tsyringe";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { JsonUtil } from "./JsonUtil";
-import { MathUtil } from "./MathUtil";
 
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { MathUtil } from "@spt-aki/utils/MathUtil";
 
 /**
-     * Array of ProbabilityObjectArray which allow to randomly draw of the contained objects
-     * based on the relative probability of each of its elements.
-     * The probabilities of the contained element is not required to be normalized.
-     *
-     * Example:
-     *   po = new ProbabilityObjectArray(
-     *          new ProbabilityObject("a", 5),
-     *          new ProbabilityObject("b", 1),
-     *          new ProbabilityObject("c", 1)
-     *   );
-     *   res = po.draw(10000);
-     *   // count the elements which should be distributed according to the relative probabilities
-     *   res.filter(x => x==="b").reduce((sum, x) => sum + 1 , 0)
-     */
-export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObject<K, V>>
+ * Array of ProbabilityObjectArray which allow to randomly draw of the contained objects
+ * based on the relative probability of each of its elements.
+ * The probabilities of the contained element is not required to be normalized.
+ *
+ * Example:
+ *   po = new ProbabilityObjectArray(
+ *          new ProbabilityObject("a", 5),
+ *          new ProbabilityObject("b", 1),
+ *          new ProbabilityObject("c", 1)
+ *   );
+ *   res = po.draw(10000);
+ *   // count the elements which should be distributed according to the relative probabilities
+ *   res.filter(x => x==="b").reduce((sum, x) => sum + 1 , 0)
+ */
+export class ProbabilityObjectArray<K, V = undefined> extends Array<ProbabilityObject<K, V>>
 {
-    constructor(
-        private mathUtil: MathUtil,
-        private jsonUtil: JsonUtil,
-        ...items: ProbabilityObject<K, V>[]) 
+    constructor(private mathUtil: MathUtil, private jsonUtil: JsonUtil, ...items: ProbabilityObject<K, V>[])
     {
         super();
         this.push(...items);
     }
 
-    filter(callbackfn: (value: ProbabilityObject<K, V>, index: number, array: ProbabilityObject<K, V>[]) => any): ProbabilityObjectArray<K, V>
+    filter(
+        callbackfn: (value: ProbabilityObject<K, V>, index: number, array: ProbabilityObject<K, V>[]) => any,
+    ): ProbabilityObjectArray<K, V>
     {
         return new ProbabilityObjectArray(this.mathUtil, this.jsonUtil, ...super.filter(callbackfn));
     }
@@ -56,7 +55,7 @@ export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObj
     {
         const clone = this.jsonUtil.clone(this);
         const probabliltyObjects = new ProbabilityObjectArray<K, V>(this.mathUtil, this.jsonUtil);
-        for (const ci of clone) 
+        for (const ci of clone)
         {
             probabliltyObjects.push(new ProbabilityObject(ci.key, ci.relativeProbability, ci.data));
         }
@@ -71,7 +70,7 @@ export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObj
      */
     drop(key: K): ProbabilityObjectArray<K, V>
     {
-        return this.filter(r => r.key !== key);
+        return this.filter((r) => r.key !== key);
     }
 
     /**
@@ -81,7 +80,7 @@ export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObj
      */
     data(key: K): V
     {
-        return this.filter(r => r.key === key)[0]?.data;
+        return this.filter((r) => r.key === key)[0]?.data;
     }
 
     /**
@@ -96,7 +95,7 @@ export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObj
      */
     probability(key: K): number
     {
-        return this.filter(r => r.key === key)[0].relativeProbability;
+        return this.filter((r) => r.key === key)[0].relativeProbability;
     }
 
     /**
@@ -110,7 +109,7 @@ export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObj
      */
     maxProbability(): number
     {
-        return Math.max(...this.map(x => x.relativeProbability));
+        return Math.max(...this.map((x) => x.relativeProbability));
     }
 
     /**
@@ -124,67 +123,72 @@ export class ProbabilityObjectArray<K, V=undefined> extends Array<ProbabilityObj
      */
     minProbability(): number
     {
-        return Math.min(...this.map(x => x.relativeProbability));
+        return Math.min(...this.map((x) => x.relativeProbability));
     }
 
     /**
      * Draw random element of the ProbabilityObject N times to return an array of N keys.
      * Drawing can be with or without replacement
-     *
-     * @param       {integer}                       count                   The number of times we want to draw
-     * @param       {boolean}                       replacement             Draw with or without replacement from the input dict
-     * @param       {array}                         locklist                list keys which shall be replaced even if drawing without replacement
-     * @return      {array}                                                 Array consisting of N random keys for this ProbabilityObjectArray
+     * @param count The number of times we want to draw
+     * @param replacement Draw with or without replacement from the input dict (true = dont remove after drawing)
+     * @param locklist list keys which shall be replaced even if drawing without replacement
+     * @returns Array consisting of N random keys for this ProbabilityObjectArray
      */
     public draw(count = 1, replacement = true, locklist: Array<K> = []): K[]
     {
-        const probArray = this.map(x => x.relativeProbability);
-        const keyArray = this.map(x => x.key);
+        const { probArray, keyArray } = this.reduce((acc, x) =>
+        {
+            acc.probArray.push(x.relativeProbability);
+            acc.keyArray.push(x.key);
+            return acc;
+        }, { probArray: [], keyArray: [] });
         let probCumsum = this.cumulativeProbability(probArray);
 
-        const randomKeys = [];
-        for (let i = 0; i < count; i++) 
+        const drawnKeys = [];
+        for (let i = 0; i < count; i++)
         {
             const rand = Math.random();
-            const idx = probCumsum.findIndex(x => x > rand);
-            // we cannot put Math.random() directly in the findIndex because then it draws anew for each of its iteration
-            if (replacement || locklist.includes(keyArray[idx])) 
+            const randomIndex = probCumsum.findIndex((x) => x > rand);
+            // We cannot put Math.random() directly in the findIndex because then it draws anew for each of its iteration
+            if (replacement || locklist.includes(keyArray[randomIndex]))
             {
-                randomKeys.push(keyArray[idx]);
+                // Add random item from possible value into return array
+                drawnKeys.push(keyArray[randomIndex]);
             }
-            else 
+            else
             {
-                // we draw without replacement -> remove the key and its probability from array
-                const key = keyArray.splice(idx, 1)[0];
-                probArray.splice(idx, 1);
-                randomKeys.push(key);
+                // We draw without replacement -> remove the key and its probability from array
+                const key = keyArray.splice(randomIndex, 1)[0];
+                probArray.splice(randomIndex, 1);
+                drawnKeys.push(key);
                 probCumsum = this.cumulativeProbability(probArray);
-                // if we draw without replacement and the ProbabilityObjectArray is exhausted we need to break
-                if (keyArray.length < 1) 
+                // If we draw without replacement and the ProbabilityObjectArray is exhausted we need to break
+                if (keyArray.length < 1)
                 {
                     break;
                 }
             }
         }
-        return randomKeys;
+
+        return drawnKeys;
     }
 }
 
 /**
-     * A ProbabilityObject which is use as an element to the ProbabilityObjectArray array
-     * It contains a key, the relative probability as well as optional data.
-     */
-export class ProbabilityObject<K,V=undefined>
+ * A ProbabilityObject which is use as an element to the ProbabilityObjectArray array
+ * It contains a key, the relative probability as well as optional data.
+ */
+export class ProbabilityObject<K, V = undefined>
 {
     key: K;
     relativeProbability: number;
     data: V;
     /**
-      * Constructor for the ProbabilityObject
-      * @param       {string}                        key                         The key of the element
-      * @param       {number}                        relativeProbability         The relative probability of this element
-      * @param       {any}                           data                        Optional data attached to the element
-      */
+     * Constructor for the ProbabilityObject
+     * @param       {string}                        key                         The key of the element
+     * @param       {number}                        relativeProbability         The relative probability of this element
+     * @param       {any}                           data                        Optional data attached to the element
+     */
     constructor(key: K, relativeProbability: number, data: V = null)
     {
         this.key = key;
@@ -196,10 +200,7 @@ export class ProbabilityObject<K,V=undefined>
 @injectable()
 export class RandomUtil
 {
-    constructor (
-        @inject("JsonUtil") protected jsonUtil: JsonUtil,
-        @inject("WinstonLogger") protected logger: ILogger
-    )
+    constructor(@inject("JsonUtil") protected jsonUtil: JsonUtil, @inject("WinstonLogger") protected logger: ILogger)
     {
     }
 
@@ -228,6 +229,18 @@ export class RandomUtil
     public getPercentOfValue(percent: number, number: number, toFixed = 2): number
     {
         return Number.parseFloat(((percent * number) / 100).toFixed(toFixed));
+    }
+
+    /**
+     * Reduce a value by a percentage
+     * @param number Value to reduce
+     * @param percentage Percentage to reduce value by
+     * @returns Reduced value
+     */
+    public reduceValueByPercent(number: number, percentage: number): number
+    {
+        const reductionAmount = number * (percentage / 100);
+        return number - reductionAmount;
     }
 
     /**
@@ -271,8 +284,14 @@ export class RandomUtil
     {
         let u = 0;
         let v = 0;
-        while (u === 0) u = Math.random(); //Converting [0,1) to (0,1)
-        while (v === 0) v = Math.random();
+        while (u === 0)
+        {
+            u = Math.random(); // Converting [0,1) to (0,1)
+        }
+        while (v === 0)
+        {
+            v = Math.random();
+        }
         const w = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
         return mu + w * sigma;
     }
@@ -286,11 +305,11 @@ export class RandomUtil
      */
     public randInt(low: number, high?: number): number
     {
-        if (high) 
+        if (high)
         {
             return low + Math.floor(Math.random() * (high - low));
         }
-        else 
+        else
         {
             return Math.floor(Math.random() * low);
         }
@@ -306,20 +325,20 @@ export class RandomUtil
      */
     public drawRandomFromList<T>(list: Array<T>, count = 1, replacement = true): Array<T>
     {
-        if (!replacement) 
+        if (!replacement)
         {
             list = this.jsonUtil.clone(list);
         }
 
         const results = [];
-        for (let i = 0; i < count; i++) 
+        for (let i = 0; i < count; i++)
         {
             const randomIndex = this.randInt(list.length);
-            if (replacement) 
+            if (replacement)
             {
                 results.push(list[randomIndex]);
             }
-            else 
+            else
             {
                 results.push(list.splice(randomIndex, 1)[0]);
             }
@@ -360,17 +379,14 @@ export class RandomUtil
         if (max < min)
         {
             throw {
-                "name": "Invalid arguments",
-                "message": `Bounded random number generation max is smaller than min (${max} < ${min})`
+                name: "Invalid arguments",
+                message: `Bounded random number generation max is smaller than min (${max} < ${min})`,
             };
         }
 
         if (n < 1)
         {
-            throw {
-                "name": "Invalid argument",
-                "message": `'n' must be 1 or greater (received ${n})`
-            };
+            throw { name: "Invalid argument", message: `'n' must be 1 or greater (received ${n})` };
         }
 
         if (min === max)
@@ -385,7 +401,9 @@ export class RandomUtil
              * A shift that is equal to the available range only has a 50% chance of rolling correctly, theoretically halving performance.
              * Shifting even further drops the success chance very rapidly - so we want to warn against that */
 
-            this.logger.warning("Bias shift for random number generation is greater than the range of available numbers.\nThis can have a very severe performance impact!");
+            this.logger.warning(
+                "Bias shift for random number generation is greater than the range of available numbers.\nThis can have a very severe performance impact!",
+            );
             this.logger.info(`min -> ${min}; max -> ${max}; shift -> ${shift}`);
         }
 
@@ -428,19 +446,18 @@ export class RandomUtil
     {
         let currentIndex = array.length;
         let randomIndex: number;
-      
+
         // While there remain elements to shuffle.
-        while (currentIndex !== 0) 
+        while (currentIndex !== 0)
         {
             // Pick a remaining element.
             randomIndex = Math.floor(Math.random() * currentIndex);
             currentIndex--;
-        
+
             // And swap it with the current element.
-            [array[currentIndex], array[randomIndex]] = [
-                array[randomIndex], array[currentIndex]];
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
         }
-      
+
         return array;
     }
 }

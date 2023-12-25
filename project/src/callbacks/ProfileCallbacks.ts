@@ -1,25 +1,22 @@
 import { inject, injectable } from "tsyringe";
 
-import { ProfileController } from "../controllers/ProfileController";
-import { IEmptyRequestData } from "../models/eft/common/IEmptyRequestData";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { IGetBodyResponseData } from "../models/eft/httpResponse/IGetBodyResponseData";
-import { INullResponseData } from "../models/eft/httpResponse/INullResponseData";
-import { IGetMiniProfileRequestData } from "../models/eft/launcher/IGetMiniProfileRequestData";
-import { GetProfileStatusResponseData } from "../models/eft/profile/GetProfileStatusResponseData";
-import { IGetProfileSettingsRequest } from "../models/eft/profile/IGetProfileSettingsRequest";
-import {
-    IProfileChangeNicknameRequestData
-} from "../models/eft/profile/IProfileChangeNicknameRequestData";
-import {
-    IProfileChangeVoiceRequestData
-} from "../models/eft/profile/IProfileChangeVoiceRequestData";
-import { IProfileCreateRequestData } from "../models/eft/profile/IProfileCreateRequestData";
-import { ISearchFriendRequestData } from "../models/eft/profile/ISearchFriendRequestData";
-import { ISearchFriendResponse } from "../models/eft/profile/ISearchFriendResponse";
-import { IValidateNicknameRequestData } from "../models/eft/profile/IValidateNicknameRequestData";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
-import { TimeUtil } from "../utils/TimeUtil";
+import { ProfileController } from "@spt-aki/controllers/ProfileController";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { INullResponseData } from "@spt-aki/models/eft/httpResponse/INullResponseData";
+import { IGetMiniProfileRequestData } from "@spt-aki/models/eft/launcher/IGetMiniProfileRequestData";
+import { GetProfileStatusResponseData } from "@spt-aki/models/eft/profile/GetProfileStatusResponseData";
+import { ICreateProfileResponse } from "@spt-aki/models/eft/profile/ICreateProfileResponse";
+import { IGetProfileSettingsRequest } from "@spt-aki/models/eft/profile/IGetProfileSettingsRequest";
+import { IProfileChangeNicknameRequestData } from "@spt-aki/models/eft/profile/IProfileChangeNicknameRequestData";
+import { IProfileChangeVoiceRequestData } from "@spt-aki/models/eft/profile/IProfileChangeVoiceRequestData";
+import { IProfileCreateRequestData } from "@spt-aki/models/eft/profile/IProfileCreateRequestData";
+import { ISearchFriendRequestData } from "@spt-aki/models/eft/profile/ISearchFriendRequestData";
+import { ISearchFriendResponse } from "@spt-aki/models/eft/profile/ISearchFriendResponse";
+import { IValidateNicknameRequestData } from "@spt-aki/models/eft/profile/IValidateNicknameRequestData";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 /** Handle profile related client events */
 @injectable()
@@ -28,16 +25,18 @@ export class ProfileCallbacks
     constructor(
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("TimeUtil") protected timeUtil: TimeUtil,
-        @inject("ProfileController") protected profileController: ProfileController)
-    { }
+        @inject("ProfileController") protected profileController: ProfileController,
+    )
+    {}
 
     /**
      * Handle client/game/profile/create
      */
-    public createProfile(url: string, info: IProfileCreateRequestData, sessionID: string): IGetBodyResponseData<any>
+    public createProfile(url: string, info: IProfileCreateRequestData, sessionID: string): IGetBodyResponseData<ICreateProfileResponse>
     {
-        this.profileController.createProfile(info, sessionID);
-        return this.httpResponse.getBody({ uid: `pmc${sessionID}` });
+        const id = this.profileController.createProfile(info, sessionID);
+
+        return this.httpResponse.getBody({ uid: id });
     }
 
     /**
@@ -53,7 +52,7 @@ export class ProfileCallbacks
      * Handle client/game/profile/savage/regenerate
      * Handle the creation of a scav profile for player
      * Occurs post-raid and when profile first created immediately after character details are confirmed by player
-     * @param url 
+     * @param url
      * @param info empty
      * @param sessionID Session id
      * @returns Profile object
@@ -76,7 +75,11 @@ export class ProfileCallbacks
      * Handle client/game/profile/nickname/change event
      * Client allows player to adjust their profile name
      */
-    public changeNickname(url: string, info: IProfileChangeNicknameRequestData, sessionID: string): IGetBodyResponseData<any>
+    public changeNickname(
+        url: string,
+        info: IProfileChangeNicknameRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<any>
     {
         const output = this.profileController.changeNickname(info, sessionID);
 
@@ -90,30 +93,31 @@ export class ProfileCallbacks
             return this.httpResponse.getBody(null, 1, "The nickname is too short");
         }
 
-        return this.httpResponse.getBody({
-            status: 0,
-            nicknamechangedate: this.timeUtil.getTimestamp()
-        });
+        return this.httpResponse.getBody({ status: 0, nicknamechangedate: this.timeUtil.getTimestamp() });
     }
 
     /**
      * Handle client/game/profile/nickname/validate
      */
-    public validateNickname(url: string, info: IValidateNicknameRequestData, sessionID: string): IGetBodyResponseData<any>
+    public validateNickname(
+        url: string,
+        info: IValidateNicknameRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<any>
     {
         const output = this.profileController.validateNickname(info, sessionID);
 
         if (output === "taken")
         {
-            return this.httpResponse.getBody(null, 255, "The nickname is already in use");
+            return this.httpResponse.getBody(null, 255, "225 - ");
         }
 
         if (output === "tooshort")
         {
-            return this.httpResponse.getBody(null, 256, "The nickname is too short");
+            return this.httpResponse.getBody(null, 256, "256 - ");
         }
 
-        return this.httpResponse.getBody({ "status": "ok" });
+        return this.httpResponse.getBody({ status: "ok" });
     }
 
     /**
@@ -129,34 +133,27 @@ export class ProfileCallbacks
      * Handle client/profile/status
      * Called when creating a character when choosing a character face/voice
      */
-    public getProfileStatus(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<GetProfileStatusResponseData>
+    public getProfileStatus(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<GetProfileStatusResponseData>
     {
         const response: GetProfileStatusResponseData = {
             maxPveCountExceeded: false,
-            profiles: [
-                {
-                    "profileid": `scav${sessionID}`,
-                    profileToken: null,
-                    "status": "Free",
-                    "sid": "",
-                    "ip": "",
-                    "port": 0,
-                    version: "live",
-                    location: "bigmap",
-                    raidMode: "Online",
-                    mode: "deathmatch",
-                    shortId: "xxx1x1"
-
-                },
-                {
-                    "profileid": `pmc${sessionID}`,
-                    profileToken: null,
-                    "status": "Free",
-                    "sid": "",
-                    "ip": "",
-                    "port": 0
-                }
-            ]
+            profiles: [{
+                profileid: `scav${sessionID}`,
+                profileToken: null,
+                status: "Free",
+                sid: "",
+                ip: "",
+                port: 0,
+                version: "live",
+                location: "bigmap",
+                raidMode: "Online",
+                mode: "deathmatch",
+                shortId: "xxx1x1",
+            }, { profileid: `pmc${sessionID}`, profileToken: null, status: "Free", sid: "", ip: "", port: 0 }],
         };
 
         return this.httpResponse.getBody(response);
@@ -166,7 +163,11 @@ export class ProfileCallbacks
      * Handle client/profile/settings
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getProfileSettings(url: string, info: IGetProfileSettingsRequest, sessionId: string): IGetBodyResponseData<string>
+    public getProfileSettings(
+        url: string,
+        info: IGetProfileSettingsRequest,
+        sessionId: string,
+    ): IGetBodyResponseData<string>
     {
         return this.httpResponse.emptyResponse();
     }
@@ -174,7 +175,11 @@ export class ProfileCallbacks
     /**
      * Handle client/game/profile/search
      */
-    public searchFriend(url: string, info: ISearchFriendRequestData, sessionID: string): IGetBodyResponseData<ISearchFriendResponse[]>
+    public searchFriend(
+        url: string,
+        info: ISearchFriendRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<ISearchFriendResponse[]>
     {
         return this.httpResponse.getBody(this.profileController.getFriends(info, sessionID));
     }

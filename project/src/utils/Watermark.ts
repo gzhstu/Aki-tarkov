@@ -1,30 +1,29 @@
 import { inject, injectable } from "tsyringe";
 
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { ICoreConfig } from "../models/spt/config/ICoreConfig";
-import { LogTextColor } from "../models/spt/logging/LogTextColor";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { LocalisationService } from "../services/LocalisationService";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { ICoreConfig } from "@spt-aki/models/spt/config/ICoreConfig";
+import { LogTextColor } from "@spt-aki/models/spt/logging/LogTextColor";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
 
 @injectable()
 export class WatermarkLocale
 {
-    constructor(
-        @inject("LocalisationService") protected localisationService: LocalisationService
-    )
-    {}
+    protected description: string[];
+    protected warning: string[];
+    protected modding: string[];
 
-    protected watermark = {
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        "description": [
+    constructor(@inject("LocalisationService") protected localisationService: LocalisationService)
+    {
+        this.description = [
             this.localisationService.getText("watermark-discord_url"),
             "",
             this.localisationService.getText("watermark-free_of_charge"),
             this.localisationService.getText("watermark-paid_scammed"),
-            this.localisationService.getText("watermark-commercial_use_prohibited")
-        ],
-        "warning": [
+            this.localisationService.getText("watermark-commercial_use_prohibited"),
+        ];
+        this.warning = [
             "",
             this.localisationService.getText("watermark-testing_build"),
             this.localisationService.getText("watermark-no_support"),
@@ -32,30 +31,30 @@ export class WatermarkLocale
             `${this.localisationService.getText("watermark-report_issues_to")}:`,
             this.localisationService.getText("watermark-issue_tracker_url"),
             "",
-            this.localisationService.getText("watermark-use_at_own_risk")
-        ],
-        "modding": [
+            this.localisationService.getText("watermark-use_at_own_risk"),
+        ];
+        this.modding = [
             "",
             this.localisationService.getText("watermark-modding_disabled"),
             "",
             this.localisationService.getText("watermark-not_an_issue"),
-            this.localisationService.getText("watermark-do_not_report")
-        ]
-    };
+            this.localisationService.getText("watermark-do_not_report"),
+        ];
+    }
 
     public getDescription(): string[]
     {
-        return this.watermark.description;
+        return this.description;
     }
 
     public getWarning(): string[]
     {
-        return this.watermark.warning;
+        return this.warning;
     }
 
     public getModding(): string[]
     {
-        return this.watermark.modding;
+        return this.modding;
     }
 }
 
@@ -68,7 +67,7 @@ export class Watermark
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("ConfigServer") protected configServer: ConfigServer,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("WatermarkLocale") protected watermarkLocale?: WatermarkLocale
+        @inject("WatermarkLocale") protected watermarkLocale?: WatermarkLocale,
     )
     {
         this.akiConfig = this.configServer.getConfig<ICoreConfig>(ConfigTypes.CORE);

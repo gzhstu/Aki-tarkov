@@ -1,5 +1,7 @@
 export enum SkillTypes
-    {
+{
+    BOT_RELOAD = "BotReload",
+    BOT_SOUND = "BotSound",
     HIDEOUT_MANAGEMENT = "HideoutManagement",
     CRAFTING = "Crafting",
     METABOLISM = "Metabolism",
@@ -20,6 +22,7 @@ export enum SkillTypes
     ATTENTION = "Attention",
     CHARISMA = "Charisma",
     MEMORY = "Memory",
+    MELEE = "Melee",
     SURGERY = "Surgery",
     AIM_DRILLS = "AimDrills",
     TROUBLESHOOTING = "TroubleShooting",
@@ -32,6 +35,7 @@ export enum SkillTypes
     NIGHT_OPS = "NightOps",
     SILENT_OPS = "SilentOps",
     LOCKPICKING = "Lockpicking",
+    /** Also called Weapon Maintenance*/
     WEAPON_TREATMENT = "WeaponTreatment",
     MAG_DRILLS = "MagDrills",
     FREE_TRADING = "Freetrading",
@@ -49,5 +53,5 @@ export enum SkillTypes
     USEC_DEEP_WEAPON_MOD = "UsecDeepweaponmodding_Settings",
     USEC_LONG_RANGE_OPTICS = "UsecLongrangeoptics_Settings",
     USEC_NEGOTIATIONS = "UsecNegotiations",
-    USEC_TACTICS = "UsecTactics"
+    USEC_TACTICS = "UsecTactics",
 }

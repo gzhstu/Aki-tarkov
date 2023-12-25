@@ -1,13 +1,10 @@
-import { OnLoad } from "../../../di/OnLoad";
+import { OnLoad } from "@spt-aki/di/OnLoad";
 
 export class OnLoadMod implements OnLoad
 {
-    public constructor(
-        private onLoadOverride: () => void,
-        private getRouteOverride: () => string
-    ) 
+    public constructor(private onLoadOverride: () => void, private getRouteOverride: () => string)
     {
-        //super();
+        // super();
     }
 
     public async onLoad(): Promise<void>
@@ -15,7 +12,7 @@ export class OnLoadMod implements OnLoad
         return this.onLoadOverride();
     }
 
-    public getRoute(): string 
+    public getRoute(): string
     {
         return this.getRouteOverride();
     }

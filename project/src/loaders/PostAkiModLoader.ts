@@ -1,13 +1,14 @@
 import { DependencyContainer, inject, injectable } from "tsyringe";
-import { IPostAkiLoadMod } from "../models/external/IPostAkiLoadMod";
-import { IPostAkiLoadModAsync } from "../models/external/IPostAkiLoadModAsync";
-import { IModLoader } from "../models/spt/mod/IModLoader";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { LocalisationService } from "../services/LocalisationService";
-import { VFS } from "../utils/VFS";
-import { BundleLoader } from "./BundleLoader";
-import { ModTypeCheck } from "./ModTypeCheck";
-import { PreAkiModLoader } from "./PreAkiModLoader";
+
+import { BundleLoader } from "@spt-aki/loaders/BundleLoader";
+import { ModTypeCheck } from "@spt-aki/loaders/ModTypeCheck";
+import { PreAkiModLoader } from "@spt-aki/loaders/PreAkiModLoader";
+import { IPostAkiLoadMod } from "@spt-aki/models/external/IPostAkiLoadMod";
+import { IPostAkiLoadModAsync } from "@spt-aki/models/external/IPostAkiLoadModAsync";
+import { IModLoader } from "@spt-aki/models/spt/mod/IModLoader";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { VFS } from "@spt-aki/utils/VFS";
 
 @injectable()
 export class PostAkiModLoader implements IModLoader
@@ -18,9 +19,9 @@ export class PostAkiModLoader implements IModLoader
         @inject("VFS") protected vfs: VFS,
         @inject("PreAkiModLoader") protected preAkiModLoader: PreAkiModLoader,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("ModTypeCheck") protected modTypeCheck: ModTypeCheck
+        @inject("ModTypeCheck") protected modTypeCheck: ModTypeCheck,
     )
-    { }
+    {}
 
     public getModPath(mod: string): string
     {
@@ -39,27 +40,38 @@ export class PostAkiModLoader implements IModLoader
     protected async executeMods(container: DependencyContainer): Promise<void>
     {
         const mods = this.preAkiModLoader.sortModsLoadOrder();
-        const promises = new Array<Promise<any>>();
         for (const modName of mods)
         {
             // // import class
-            const filepath = `${this.preAkiModLoader.getModPath(modName)}${this.preAkiModLoader.getImportedModDetails()[modName].main}`;
+            const filepath = `${this.preAkiModLoader.getModPath(modName)}${
+                this.preAkiModLoader.getImportedModDetails()[modName].main
+            }`;
             const modpath = `${process.cwd()}/${filepath}`;
             // eslint-disable-next-line @typescript-eslint/no-var-requires
             const mod = require(modpath);
+
+            if (this.modTypeCheck.isPostAkiLoadAsync(mod.mod))
+            {
+                try
+                {
+                    await (mod.mod as IPostAkiLoadModAsync).postAkiLoadAsync(container);
+                }
+                catch (err)
+                {
+                    this.logger.error(
+                        this.localisationService.getText(
+                            "modloader-async_mod_error",
+                            `${err?.message ?? ""}\n${err.stack ?? ""}`,
+                        ),
+                    );
+                }
+            }
+
             if (this.modTypeCheck.isPostAkiLoad(mod.mod))
             {
                 (mod.mod as IPostAkiLoadMod).postAkiLoad(container);
             }
-            if (this.modTypeCheck.isPostAkiLoadAsync(mod.mod))
-            {
-                promises.push(
-                    (mod.mod as IPostAkiLoadModAsync).postAkiLoadAsync(container)
-                        .catch((err) => this.logger.error(this.localisationService.getText("modloader-async_mod_error", `${err?.message ?? ""}\n${err.stack ?? ""}`)))
-                );
-            }
         }
-        await Promise.all(promises);
     }
 
     protected addBundles(): void

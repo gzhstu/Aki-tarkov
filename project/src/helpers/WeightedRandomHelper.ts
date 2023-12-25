@@ -4,7 +4,7 @@ import { injectable } from "tsyringe";
 export class WeightedRandomHelper
 {
     /**
-     * USE getWeightedValue() WHERE POSSIBLE
+     * @deprecated USE getWeightedValue() WHERE POSSIBLE
      * Gets a tplId from a weighted dictionary
      * @param {tplId: weighting[]} itemArray
      * @returns tplId
@@ -18,10 +18,16 @@ export class WeightedRandomHelper
         return chosenItem.item;
     }
 
+    /**
+     * Choos an item from the passed in array based on the weightings of each
+     * @param itemArray Items and weights to use
+     * @returns Chosen item from array
+     */
     public getWeightedValue<T>(itemArray: { [key: string]: unknown; } | ArrayLike<unknown>): T
     {
         const itemKeys = Object.keys(itemArray);
         const weights = Object.values(itemArray);
+
         const chosenItem = this.weightedRandom(itemKeys, weights);
 
         return chosenItem.item;
@@ -41,16 +47,21 @@ export class WeightedRandomHelper
      * @param {number[]} weights
      * @returns {{item: any, index: number}}
      */
-    public weightedRandom(items: string | any[], weights: string | any[]): { item: any; index: number; }
+    public weightedRandom(items: any[], weights: any[]): { item: any; index: number; }
     {
-        if (items.length !== weights.length)
-        {
-            throw new Error("Items and weights must be of the same size");
-        }
-
-        if (!items.length)
+        if (!items || items.length === 0)
         {
             throw new Error("Items must not be empty");
+        }
+
+        if (!weights || weights.length === 0)
+        {
+            throw new Error("Item weights must not be empty");
+        }
+
+        if (items.length !== weights.length)
+        {
+            throw new Error("Items and weight inputs must be of the same length");
         }
 
         // Preparing the cumulative weights array.
@@ -77,10 +88,7 @@ export class WeightedRandomHelper
         {
             if (cumulativeWeights[itemIndex] >= randomNumber)
             {
-                return {
-                    item: items[itemIndex],
-                    index: itemIndex
-                };
+                return { item: items[itemIndex], index: itemIndex };
             }
         }
     }

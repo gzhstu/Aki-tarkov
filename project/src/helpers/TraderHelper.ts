@@ -1,24 +1,25 @@
 import { inject, injectable } from "tsyringe";
 
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { ProfileTraderTemplate } from "../models/eft/common/tables/IProfileTemplate";
-import { ITraderAssort, ITraderBase, LoyaltyLevel } from "../models/eft/common/tables/ITrader";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { Money } from "../models/enums/Money";
-import { Traders } from "../models/enums/Traders";
-import { ITraderConfig } from "../models/spt/config/ITraderConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { SaveServer } from "../servers/SaveServer";
-import { FenceService } from "../services/FenceService";
-import { LocalisationService } from "../services/LocalisationService";
-import { PlayerService } from "../services/PlayerService";
-import { RandomUtil } from "../utils/RandomUtil";
-import { TimeUtil } from "../utils/TimeUtil";
-import { HandbookHelper } from "./HandbookHelper";
-import { ItemHelper } from "./ItemHelper";
-import { ProfileHelper } from "./ProfileHelper";
+import { HandbookHelper } from "@spt-aki/helpers/HandbookHelper";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { ProfileTraderTemplate } from "@spt-aki/models/eft/common/tables/IProfileTemplate";
+import { ITraderAssort, ITraderBase, LoyaltyLevel } from "@spt-aki/models/eft/common/tables/ITrader";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { Money } from "@spt-aki/models/enums/Money";
+import { Traders } from "@spt-aki/models/enums/Traders";
+import { ITraderConfig } from "@spt-aki/models/spt/config/ITraderConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { FenceService } from "@spt-aki/services/FenceService";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { PlayerService } from "@spt-aki/services/PlayerService";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class TraderHelper
@@ -41,38 +42,82 @@ export class TraderHelper
         @inject("FenceService") protected fenceService: FenceService,
         @inject("TimeUtil") protected timeUtil: TimeUtil,
         @inject("RandomUtil") protected randomUtil: RandomUtil,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.traderConfig = this.configServer.getConfig(ConfigTypes.TRADER);
     }
 
+    /**
+     * Get a trader base object, update profile to reflect players current standing in profile
+     * when trader not found in profile
+     * @param traderID Traders Id to get
+     * @param sessionID Players id
+     * @returns Trader base
+     */
     public getTrader(traderID: string, sessionID: string): ITraderBase
     {
         const pmcData = this.profileHelper.getPmcProfile(sessionID);
-        const trader = this.databaseServer.getTables().traders[traderID].base;
-
-        if (!("TradersInfo" in pmcData))
+        if (!pmcData)
         {
-            // pmc profile wiped
-            return trader;
+            this.logger.error(`No profile with sessionId: ${sessionID}`);
         }
 
-        if (!(traderID in pmcData.TradersInfo))
+        // Profile has traderInfo dict (profile beyond creation stage) but no requested trader in profile
+        if (pmcData.TradersInfo && !(traderID in pmcData.TradersInfo))
         {
-            // trader doesn't exist in profile
+            // Add trader values to profile
             this.resetTrader(sessionID, traderID);
-            this.lvlUp(traderID, sessionID);
+            this.lvlUp(traderID, pmcData);
+        }
+
+        const trader = this.databaseServer.getTables().traders?.[traderID]?.base;
+        if (!trader)
+        {
+            this.logger.error(`No trader with Id: ${traderID} found`);
         }
 
         return trader;
     }
 
-    public getTraderAssortsById(traderId: string): ITraderAssort
+    /**
+     * Get all assort data for a particular trader
+     * @param traderId Trader to get assorts for
+     * @returns ITraderAssort
+     */
+    public getTraderAssortsByTraderId(traderId: string): ITraderAssort
     {
         return traderId === Traders.FENCE
             ? this.fenceService.getRawFenceAssorts()
             : this.databaseServer.getTables().traders[traderId].assort;
+    }
+
+    /**
+     * Retrieve the Item from a traders assort data by its id
+     * @param traderId Trader to get assorts for
+     * @param assortId Id of assort to find
+     * @returns Item object
+     */
+    public getTraderAssortItemByAssortId(traderId: string, assortId: string): Item
+    {
+        const traderAssorts = this.getTraderAssortsByTraderId(traderId);
+        if (!traderAssorts)
+        {
+            this.logger.debug(`No assorts on trader: ${traderId} found`);
+
+            return null;
+        }
+
+        // Find specific assort in traders data
+        const purchasedAssort = traderAssorts.items.find((x) => x._id === assortId);
+        if (!purchasedAssort)
+        {
+            this.logger.debug(`No assort ${assortId} on trader: ${traderId} found`);
+
+            return null;
+        }
+
+        return purchasedAssort;
     }
 
     /**
@@ -85,15 +130,17 @@ export class TraderHelper
     {
         const account = this.saveServer.getProfile(sessionID);
         const pmcData = this.profileHelper.getPmcProfile(sessionID);
-        const rawProfileTemplate: ProfileTraderTemplate = this.databaseServer.getTables().templates.profiles[account.info.edition][pmcData.Info.Side.toLowerCase()].trader;
+        const rawProfileTemplate: ProfileTraderTemplate =
+            this.databaseServer.getTables().templates.profiles[account.info.edition][pmcData.Info.Side.toLowerCase()]
+                .trader;
 
         pmcData.TradersInfo[traderID] = {
             disabled: false,
             loyaltyLevel: rawProfileTemplate.initialLoyaltyLevel,
             salesSum: rawProfileTemplate.initialSalesSum,
-            standing: this.getStartingStanding(traderID, rawProfileTemplate), 
+            standing: this.getStartingStanding(traderID, rawProfileTemplate),
             nextResupply: this.databaseServer.getTables().traders[traderID].base.nextResupply,
-            unlocked: this.databaseServer.getTables().traders[traderID].base.unlockedByDefault
+            unlocked: this.databaseServer.getTables().traders[traderID].base.unlockedByDefault,
         };
 
         if (traderID === Traders.JAEGER)
@@ -102,6 +149,12 @@ export class TraderHelper
         }
     }
 
+    /**
+     * Get the starting standing of a trader based on the current profiles type (e.g. EoD, Standard etc)
+     * @param traderId Trader id to get standing for
+     * @param rawProfileTemplate Raw profile from profiles.json to look up standing from
+     * @returns Standing value
+     */
     protected getStartingStanding(traderId: string, rawProfileTemplate: ProfileTraderTemplate): number
     {
         // Edge case for Lightkeeper, 0 standing means seeing `Make Amends - Buyout` quest
@@ -139,7 +192,7 @@ export class TraderHelper
         // Add standing to trader
         traderInfo.standing = this.addStandingValuesTogether(traderInfo.standing, standingToAdd);
 
-        this.lvlUp(traderId, sessionId);
+        this.lvlUp(traderId, pmcData);
     }
 
     /**
@@ -152,38 +205,36 @@ export class TraderHelper
     {
         const newStanding = currentStanding + standingToAdd;
 
-        return newStanding < 0
-            ? 0
-            : newStanding;
+        return newStanding < 0 ? 0 : newStanding;
     }
 
     /**
      * Calculate traders level based on exp amount and increments level if over threshold
-     * @param traderID trader to process
-     * @param sessionID session id
+     * @param traderID trader to check standing of
+     * @param pmcData profile to update trader in
      */
-    public lvlUp(traderID: string, sessionID: string): void
+    public lvlUp(traderID: string, pmcData: IPmcData): void
     {
         const loyaltyLevels = this.databaseServer.getTables().traders[traderID].base.loyaltyLevels;
-        const pmcData = this.profileHelper.getPmcProfile(sessionID);
 
-        // level up player
+        // Level up player
         pmcData.Info.Level = this.playerService.calculateLevel(pmcData);
 
-        // level up traders
+        // Level up traders
         let targetLevel = 0;
 
-        // round standing to 2 decimal places to address floating point inaccuracies
+        // Round standing to 2 decimal places to address floating point inaccuracies
         pmcData.TradersInfo[traderID].standing = Math.round(pmcData.TradersInfo[traderID].standing * 100) / 100;
 
         for (const level in loyaltyLevels)
         {
             const loyalty = loyaltyLevels[level];
 
-            if ((loyalty.minLevel <= pmcData.Info.Level
-                && loyalty.minSalesSum <= pmcData.TradersInfo[traderID].salesSum
-                && loyalty.minStanding <= pmcData.TradersInfo[traderID].standing)
-                && targetLevel < 4)
+            if (
+                (loyalty.minLevel <= pmcData.Info.Level
+                    && loyalty.minSalesSum <= pmcData.TradersInfo[traderID].salesSum
+                    && loyalty.minStanding <= pmcData.TradersInfo[traderID].standing) && targetLevel < 4
+            )
             {
                 // level reached
                 targetLevel++;
@@ -213,15 +264,17 @@ export class TraderHelper
      */
     public getTraderUpdateSeconds(traderId: string): number
     {
-        const traderDetails = this.traderConfig.updateTime.find(x => x.traderId === traderId);
+        const traderDetails = this.traderConfig.updateTime.find((x) => x.traderId === traderId);
         if (!traderDetails)
         {
-            this.logger.warning(this.localisationService.getText("trader-missing_trader_details_using_default_refresh_time", {traderId: traderId, updateTime: this.traderConfig.updateTimeDefault}));
-            this.traderConfig.updateTime.push(  // create temporary entry to prevent logger spam
-                {
+            this.logger.warning(
+                this.localisationService.getText("trader-missing_trader_details_using_default_refresh_time", {
                     traderId: traderId,
-                    seconds: this.traderConfig.updateTimeDefault
-                }
+                    updateTime: this.traderConfig.updateTimeDefault,
+                }),
+            );
+            this.traderConfig.updateTime.push( // create temporary entry to prevent logger spam
+                { traderId: traderId, seconds: this.traderConfig.updateTimeDefault },
             );
         }
         else
@@ -254,7 +307,11 @@ export class TraderHelper
      * @param newPurchaseDetails New item assort id + count
      */
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    public addTraderPurchasesToPlayerProfile(sessionID: string, newPurchaseDetails: { items: { item_id: string; count: number; }[]; tid: string; }): void
+    public addTraderPurchasesToPlayerProfile(
+        sessionID: string,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        newPurchaseDetails: { items: { item_id: string; count: number; }[]; tid: string; },
+    ): void
     {
         const profile = this.profileHelper.getFullProfile(sessionID);
         const traderId = newPurchaseDetails.tid;
@@ -276,10 +333,9 @@ export class TraderHelper
             const currentTime = this.timeUtil.getTimestamp();
             if (!profile.traderPurchases[traderId][purchasedItem.item_id])
             {
-                profile.traderPurchases[traderId][purchasedItem.item_id] =
-                {
+                profile.traderPurchases[traderId][purchasedItem.item_id] = {
                     count: purchasedItem.count,
-                    purchaseTimestamp: currentTime
+                    purchaseTimestamp: currentTime,
                 };
 
                 continue;
@@ -325,7 +381,7 @@ export class TraderHelper
             }
 
             // Get all item assorts that have parentid of hideout (base item and not a mod of other item)
-            for (const item of traderAssorts.items.filter(x => x.parentId === "hideout"))
+            for (const item of traderAssorts.items.filter((x) => x.parentId === "hideout"))
             {
                 // Get barter scheme (contains cost of item)
                 const barterScheme = traderAssorts.barter_scheme[item._id][0][0];
@@ -365,7 +421,6 @@ export class TraderHelper
             return this.highestTraderBuyPriceItems[tpl];
         }
 
-        
         // Find highest trader price for item
         for (const traderName in Traders)
         {
@@ -379,7 +434,9 @@ export class TraderHelper
                 const traderBuyBackPricePercent = relevantLoyaltyData.buy_price_coef;
 
                 const itemHandbookPrice = this.handbookHelper.getTemplatePrice(tpl);
-                const priceTraderBuysItemAt = Math.round(this.randomUtil.getPercentOfValue(traderBuyBackPricePercent, itemHandbookPrice));
+                const priceTraderBuysItemAt = Math.round(
+                    this.randomUtil.getPercentOfValue(traderBuyBackPricePercent, itemHandbookPrice),
+                );
 
                 // Set new item to 1 rouble as default
                 if (!this.highestTraderBuyPriceItems[tpl])
@@ -405,7 +462,7 @@ export class TraderHelper
      */
     public getTraderById(traderId: string): Traders
     {
-        const keys = Object.keys(Traders).filter(x => Traders[x] === traderId);
+        const keys = Object.keys(Traders).filter((x) => Traders[x] === traderId);
 
         if (keys.length === 0)
         {
@@ -418,12 +475,48 @@ export class TraderHelper
     }
 
     /**
+     * Validates that the provided traderEnumValue exists in the Traders enum. If the value is valid, it returns the
+     * same enum value, effectively serving as a trader ID; otherwise, it logs an error and returns an empty string.
+     * This method provides a runtime check to prevent undefined behavior when using the enum as a dictionary key.
+     *
+     * For example, instead of this:
+     * `const traderId = Traders[Traders.PRAPOR];`
+     *
+     * You can use safely use this:
+     * `const traderId = this.traderHelper.getValidTraderIdByEnumValue(Traders.PRAPOR);`
+     *
+     * @param traderEnumValue The trader enum value to validate
+     * @returns The validated trader enum value as a string, or an empty string if invalid
+     */
+    public getValidTraderIdByEnumValue(traderEnumValue: Traders): string
+    {
+        if (!this.traderEnumHasKey(traderEnumValue))
+        {
+            this.logger.error(`Unable to find trader value: ${traderEnumValue} in Traders enum`);
+
+            return "";
+        }
+
+        return Traders[traderEnumValue];
+    }
+
+    /**
      * Does the 'Traders' enum has a value that matches the passed in parameter
-     * @param value Value to check for
+     * @param key Value to check for
      * @returns True, values exists in Traders enum as a value
      */
-    public traderEnumHasValue(value: string): boolean
+    public traderEnumHasKey(key: string): boolean
     {
-        return Object.values(Traders).some((x) => x === value);
+        return Object.keys(Traders).some((x) => x === key);
+    }
+
+    /**
+     * Accepts a trader id
+     * @param traderId Trader id
+     * @returns Ttrue if Traders enum has the param as a value
+     */
+    public traderEnumHasValue(traderId: string): boolean
+    {
+        return Object.values(Traders).some((x) => x === traderId);
     }
 }

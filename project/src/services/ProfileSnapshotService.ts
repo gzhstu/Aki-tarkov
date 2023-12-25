@@ -1,18 +1,16 @@
 import { inject, injectable } from "tsyringe";
 
-import { IAkiProfile } from "../models/eft/profile/IAkiProfile";
-import { JsonUtil } from "../utils/JsonUtil";
+import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class ProfileSnapshotService
 {
     protected storedProfileSnapshots: Record<string, IAkiProfile> = {};
 
-    constructor(
-        @inject("JsonUtil") protected jsonUtil: JsonUtil
-    )
+    constructor(@inject("JsonUtil") protected jsonUtil: JsonUtil)
     {}
-    
+
     /**
      * Store a profile into an in-memory object
      * @param sessionID session id - acts as the key

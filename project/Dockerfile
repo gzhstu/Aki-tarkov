@@ -1,14 +1,13 @@
-FROM node:16-buster as builder
+FROM node:16-buster AS builder
 
 WORKDIR /app
 
 COPY package.json .
 RUN yarn
 
-COPY .parcelrc tsconfig.json base_tsconfig.json ./
+COPY tsconfig.json tsconfig.base.json ./
 COPY src ./src
 RUN yarn test:comp-linux
-
 
 ##############################################
 

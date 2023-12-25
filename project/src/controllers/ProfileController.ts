@@ -1,37 +1,33 @@
 import { inject, injectable } from "tsyringe";
 
-import { PlayerScavGenerator } from "../generators/PlayerScavGenerator";
-import { DialogueHelper } from "../helpers/DialogueHelper";
-import { ItemHelper } from "../helpers/ItemHelper";
-import { ProfileHelper } from "../helpers/ProfileHelper";
-import { QuestHelper } from "../helpers/QuestHelper";
-import { TraderHelper } from "../helpers/TraderHelper";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { TemplateSide } from "../models/eft/common/tables/IProfileTemplate";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { IMiniProfile } from "../models/eft/launcher/IMiniProfile";
-import { IAkiProfile, Inraid, Vitality } from "../models/eft/profile/IAkiProfile";
-import {
-    IProfileChangeNicknameRequestData
-} from "../models/eft/profile/IProfileChangeNicknameRequestData";
-import {
-    IProfileChangeVoiceRequestData
-} from "../models/eft/profile/IProfileChangeVoiceRequestData";
-import { IProfileCreateRequestData } from "../models/eft/profile/IProfileCreateRequestData";
-import { ISearchFriendRequestData } from "../models/eft/profile/ISearchFriendRequestData";
-import { ISearchFriendResponse } from "../models/eft/profile/ISearchFriendResponse";
-import { IValidateNicknameRequestData } from "../models/eft/profile/IValidateNicknameRequestData";
-import { MessageType } from "../models/enums/MessageType";
-import { QuestStatus } from "../models/enums/QuestStatus";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { EventOutputHolder } from "../routers/EventOutputHolder";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { SaveServer } from "../servers/SaveServer";
-import { LocalisationService } from "../services/LocalisationService";
-import { MailSendService } from "../services/MailSendService";
-import { ProfileFixerService } from "../services/ProfileFixerService";
-import { HashUtil } from "../utils/HashUtil";
-import { TimeUtil } from "../utils/TimeUtil";
+import { PlayerScavGenerator } from "@spt-aki/generators/PlayerScavGenerator";
+import { DialogueHelper } from "@spt-aki/helpers/DialogueHelper";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { QuestHelper } from "@spt-aki/helpers/QuestHelper";
+import { TraderHelper } from "@spt-aki/helpers/TraderHelper";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { TemplateSide } from "@spt-aki/models/eft/common/tables/IProfileTemplate";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { IMiniProfile } from "@spt-aki/models/eft/launcher/IMiniProfile";
+import { IAkiProfile, Inraid, Vitality } from "@spt-aki/models/eft/profile/IAkiProfile";
+import { IProfileChangeNicknameRequestData } from "@spt-aki/models/eft/profile/IProfileChangeNicknameRequestData";
+import { IProfileChangeVoiceRequestData } from "@spt-aki/models/eft/profile/IProfileChangeVoiceRequestData";
+import { IProfileCreateRequestData } from "@spt-aki/models/eft/profile/IProfileCreateRequestData";
+import { ISearchFriendRequestData } from "@spt-aki/models/eft/profile/ISearchFriendRequestData";
+import { ISearchFriendResponse } from "@spt-aki/models/eft/profile/ISearchFriendResponse";
+import { IValidateNicknameRequestData } from "@spt-aki/models/eft/profile/IValidateNicknameRequestData";
+import { MessageType } from "@spt-aki/models/enums/MessageType";
+import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { EventOutputHolder } from "@spt-aki/routers/EventOutputHolder";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { MailSendService } from "@spt-aki/services/MailSendService";
+import { ProfileFixerService } from "@spt-aki/services/ProfileFixerService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class ProfileController
@@ -51,9 +47,9 @@ export class ProfileController
         @inject("TraderHelper") protected traderHelper: TraderHelper,
         @inject("DialogueHelper") protected dialogueHelper: DialogueHelper,
         @inject("QuestHelper") protected questHelper: QuestHelper,
-        @inject("ProfileHelper") protected profileHelper: ProfileHelper
+        @inject("ProfileHelper") protected profileHelper: ProfileHelper,
     )
-    { }
+    {}
 
     /**
      * Handle /launcher/profiles
@@ -80,33 +76,33 @@ export class ProfileController
         const pmc = profile.characters.pmc;
 
         // make sure character completed creation
-        if (!(("Info" in pmc) && ("Level" in pmc.Info)))
+        if (!(pmc?.Info?.Level))
         {
             return {
-                "username": profile.info.username,
-                "nickname": "unknown",
-                "side": "unknown",
-                "currlvl": 0,
-                "currexp": 0,
-                "prevexp": 0,
-                "nextlvl": 0,
-                "maxlvl": maxlvl,
-                "akiData": this.profileHelper.getDefaultAkiDataObject()
+                username: profile.info.username,
+                nickname: "unknown",
+                side: "unknown",
+                currlvl: 0,
+                currexp: 0,
+                prevexp: 0,
+                nextlvl: 0,
+                maxlvl: maxlvl,
+                akiData: this.profileHelper.getDefaultAkiDataObject(),
             };
         }
 
         const currlvl = pmc.Info.Level;
         const nextlvl = this.profileHelper.getExperience(currlvl + 1);
         const result = {
-            "username": profile.info.username,
-            "nickname": pmc.Info.Nickname,
-            "side": pmc.Info.Side,
-            "currlvl": pmc.Info.Level,
-            "currexp": pmc.Info.Experience,
-            "prevexp": (currlvl === 0) ? 0 : this.profileHelper.getExperience(currlvl),
-            "nextlvl": nextlvl,
-            "maxlvl": maxlvl,
-            "akiData": profile.aki
+            username: profile.info.username,
+            nickname: pmc.Info.Nickname,
+            side: pmc.Info.Side,
+            currlvl: pmc.Info.Level,
+            currexp: pmc.Info.Experience ?? 0,
+            prevexp: (currlvl === 0) ? 0 : this.profileHelper.getExperience(currlvl),
+            nextlvl: nextlvl,
+            maxlvl: maxlvl,
+            akiData: profile.aki,
         };
 
         return result;
@@ -122,11 +118,15 @@ export class ProfileController
 
     /**
      * Handle client/game/profile/create
+     * @param info Client reqeust object
+     * @param sessionID Player id
+     * @returns Profiles _id value
      */
-    public createProfile(info: IProfileCreateRequestData, sessionID: string): void
+    public createProfile(info: IProfileCreateRequestData, sessionID: string): string
     {
         const account = this.saveServer.getProfile(sessionID).info;
-        const profile: TemplateSide = this.databaseServer.getTables().templates.profiles[account.edition][info.side.toLowerCase()];
+        const profile: TemplateSide =
+            this.databaseServer.getTables().templates.profiles[account.edition][info.side.toLowerCase()];
         const pmcData = profile.character;
 
         // Delete existing profile
@@ -134,8 +134,9 @@ export class ProfileController
 
         // PMC
         pmcData._id = `pmc${sessionID}`;
-        pmcData.aid = sessionID;
+        pmcData.aid = account.aid;
         pmcData.savage = `scav${sessionID}`;
+        pmcData.sessionId = sessionID;
         pmcData.Info.Nickname = info.nickname;
         pmcData.Info.LowerNickname = info.nickname.toLowerCase();
         pmcData.Info.RegistrationDate = this.timeUtil.getTimestamp();
@@ -144,27 +145,37 @@ export class ProfileController
         pmcData.Customization.Head = info.headId;
         pmcData.Health.UpdateTime = this.timeUtil.getTimestamp();
         pmcData.Quests = [];
+        pmcData.Hideout.Seed = this.timeUtil.getTimestamp() + (8 * 60 * 60 * 24 * 365); // 8 years in future why? who knows, we saw it in live
         pmcData.RepeatableQuests = [];
         pmcData.CarExtractCounts = {};
+        pmcData.CoopExtractCounts = {};
 
-        // change item id's to be unique
-        pmcData.Inventory.items = this.itemHelper.replaceIDs(pmcData, pmcData.Inventory.items, null, pmcData.Inventory.fastPanel);
+        if (!pmcData.UnlockedInfo)
+        {
+            pmcData.UnlockedInfo = { unlockedProductionRecipe: [] };
+        }
+
+        // Change item id's to be unique
+        pmcData.Inventory.items = this.itemHelper.replaceIDs(
+            pmcData,
+            pmcData.Inventory.items,
+            null,
+            pmcData.Inventory.fastPanel,
+        );
+        pmcData.Inventory.hideoutAreaStashes = {};
 
         // Create profile
         const profileDetails: IAkiProfile = {
             info: account,
-            characters: {
-                pmc: pmcData,
-                scav: {} as IPmcData
-            },
+            characters: { pmc: pmcData, scav: {} as IPmcData },
             suits: profile.suits,
-            weaponbuilds: profile.weaponbuilds,
+            userbuilds: profile.userbuilds,
             dialogues: profile.dialogues,
             aki: this.profileHelper.getDefaultAkiDataObject(),
             vitality: {} as Vitality,
             inraid: {} as Inraid,
             insurance: [],
-            traderPurchases: {}
+            traderPurchases: {},
         };
 
         this.profileFixerService.checkForAndFixPmcProfileIssues(profileDetails.characters.pmc);
@@ -180,7 +191,11 @@ export class ProfileController
         // Profile is flagged as wanting quests set to ready to hand in and collect rewards
         if (profile.trader.setQuestsAvailableForFinish)
         {
-            this.questHelper.addAllQuestsToProfile(profileDetails.characters.pmc, [QuestStatus.AvailableForFinish]);
+            this.questHelper.addAllQuestsToProfile(profileDetails.characters.pmc, [
+                QuestStatus.AvailableForStart,
+                QuestStatus.Started,
+                QuestStatus.AvailableForFinish,
+            ]);
 
             // Make unused response so applyQuestReward works
             const response = this.eventOutputHolder.getOutput(sessionID);
@@ -200,6 +215,8 @@ export class ProfileController
         // Completed account creation
         this.saveServer.getProfile(sessionID).info.wipe = false;
         this.saveServer.saveProfile(sessionID);
+
+        return pmcData._id;
     }
 
     /**
@@ -214,7 +231,9 @@ export class ProfileController
         }
         else
         {
-            this.logger.warning(this.localisationService.getText("profile-unable_to_find_profile_by_id_cannot_delete", sessionID));
+            this.logger.warning(
+                this.localisationService.getText("profile-unable_to_find_profile_by_id_cannot_delete", sessionID),
+            );
         }
     }
 
@@ -225,16 +244,29 @@ export class ProfileController
      * @param sessionID Session id
      * @param response Event router response
      */
-    protected givePlayerStartingQuestRewards(profileDetails: IAkiProfile, sessionID: string, response: IItemEventRouterResponse): void 
+    protected givePlayerStartingQuestRewards(
+        profileDetails: IAkiProfile,
+        sessionID: string,
+        response: IItemEventRouterResponse,
+    ): void
     {
-        for (const quest of profileDetails.characters.pmc.Quests) 
+        for (const quest of profileDetails.characters.pmc.Quests)
         {
             const questFromDb = this.questHelper.getQuestFromDb(quest.qid, profileDetails.characters.pmc);
 
             // Get messageId of text to send to player as text message in game
             // Copy of code from QuestController.acceptQuest()
-            const messageId = this.questHelper.getMessageIdForQuestStart(questFromDb.startedMessageText, questFromDb.description);
-            const itemRewards = this.questHelper.applyQuestReward(profileDetails.characters.pmc, quest.qid, QuestStatus.Started, sessionID, response);
+            const messageId = this.questHelper.getMessageIdForQuestStart(
+                questFromDb.startedMessageText,
+                questFromDb.description,
+            );
+            const itemRewards = this.questHelper.applyQuestReward(
+                profileDetails.characters.pmc,
+                quest.qid,
+                QuestStatus.Started,
+                sessionID,
+                response,
+            );
 
             this.mailSendService.sendLocalisedNpcMessageToPlayer(
                 sessionID,
@@ -242,7 +274,8 @@ export class ProfileController
                 MessageType.QUEST_START,
                 messageId,
                 itemRewards,
-                this.timeUtil.getHoursAsSeconds(100));
+                this.timeUtil.getHoursAsSeconds(100),
+            );
         }
     }
 
@@ -261,7 +294,7 @@ export class ProfileController
     /**
      * Generate a player scav object
      * PMC profile MUST exist first before pscav can be generated
-     * @param sessionID 
+     * @param sessionID
      * @returns IPmcData object
      */
     public generatePlayerScav(sessionID: string): IPmcData
@@ -321,15 +354,6 @@ export class ProfileController
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public getFriends(info: ISearchFriendRequestData, sessionID: string): ISearchFriendResponse[]
     {
-        return [
-            {
-                _id: this.hashUtil.generate(),
-                Info: {
-                    Level: 1,
-                    Side: "Bear",
-                    Nickname: info.nickname
-                }
-            }
-        ];
+        return [{ _id: this.hashUtil.generate(), Info: { Level: 1, Side: "Bear", Nickname: info.nickname } }];
     }
 }

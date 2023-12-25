@@ -123,7 +123,6 @@
     "modloader-mod_order_error": "ModLoader: Errores encontrados en order.json, volviendo a orden de carga por defecto.",
     "modloader-mod_order_missing_from_json": "ModLoader: Mod %s no está en order.json",
     "modloader-visited": "visitado",
-    "modloader-x_duplicates_found": "Una o más modificaciones duplicadas fueron encontradas: %s, Solo una versión de una modificación debería estar instalada",
     "openzone-unable_to_find_map": "No se pueden añadir zonas a la localización: %s ya que no existe.",
     "payment-not_enough_money_to_complete_transation": "El perfil no tenía suficiente dinero para completar la transacción: necesitado {{amountToPay}}, tiene {{amountAvailable}}",
     "payment-not_enough_money_to_complete_transation_short": "Insuficiente dinero para completar la transacción",
@@ -403,7 +402,7 @@
     "launcher-profile_standard": "Igual que en multijugador, el tamaño básico del escondite (10x28), 500.000 rublos",
     "launcher-profile_leftbehind": "Igual que Standard plus; mayor tamaño de inventario(10x38), equipamiento extra, 500 dólares",
     "launcher-profile_preparetoescape": "Igual que Left Behind plus; mayor tamaño de inventario (10x48), equipamiento adicional/artículos, mayor reputación inicial con los comerciantes, 250 euros",
-    "launcher-edgeofdarkness": "Igual que Prepare to Escape plus; mayor tamaño de escondite (10x68), equipo adicional/artículos, mayor reputación inicial con los comerciantes, 1000 dólares, 500 euros",
+    "launcher-profile-edgeofdarkness": "Igual que Prepare to Escape plus; mayor tamaño de escondite (10x68), equipo adicional/artículos, mayor reputación inicial con los comerciantes, 1000 dólares, 500 euros",
     "launcher-profile_spteasystart": "Muchos rublos/dólares/euros, algunas habilidades de QoL son de nivel 20, la reputación de los comerciantes al máximo, el nivel inicial es 69, no hay misiones completadas",
     "launcher-profile_sptzerotohero": "Comienza con casi nada, sin rublos/dólares/euros, sin reputación de comerciantes, 1 cuchillo y sin misiones completadas",
     "launcher-profile_sptdeveloper": "Prefil de prueba, el nivel inicial es 69, muchos rublos/dólares/euros, USEC comienza con todas las misiones listas para empezar, BEAR comienza con todas las misiones listas para entregar, pasamontañas de invencibilidad"

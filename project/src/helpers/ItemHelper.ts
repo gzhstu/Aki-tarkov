@@ -1,27 +1,37 @@
 import { inject, injectable } from "tsyringe";
 
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { InsuredItem } from "../models/eft/common/tables/IBotBase";
-import { Item, Location, Repairable } from "../models/eft/common/tables/IItem";
-import { IStaticAmmoDetails } from "../models/eft/common/tables/ILootBase";
-import { ITemplateItem } from "../models/eft/common/tables/ITemplateItem";
-import { BaseClasses } from "../models/enums/BaseClasses";
-import { Money } from "../models/enums/Money";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { ItemBaseClassService } from "../services/ItemBaseClassService";
-import { LocaleService } from "../services/LocaleService";
-import { LocalisationService } from "../services/LocalisationService";
-import { HashUtil } from "../utils/HashUtil";
-import { JsonUtil } from "../utils/JsonUtil";
-import { MathUtil } from "../utils/MathUtil";
-import { ObjectId } from "../utils/ObjectId";
-import { ProbabilityObject, ProbabilityObjectArray, RandomUtil } from "../utils/RandomUtil";
-import { HandbookHelper } from "./HandbookHelper";
+import { HandbookHelper } from "@spt-aki/helpers/HandbookHelper";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { InsuredItem } from "@spt-aki/models/eft/common/tables/IBotBase";
+import { Item, Location, Repairable } from "@spt-aki/models/eft/common/tables/IItem";
+import { IStaticAmmoDetails } from "@spt-aki/models/eft/common/tables/ILootBase";
+import { ITemplateItem } from "@spt-aki/models/eft/common/tables/ITemplateItem";
+import { BaseClasses } from "@spt-aki/models/enums/BaseClasses";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { ItemBaseClassService } from "@spt-aki/services/ItemBaseClassService";
+import { ItemFilterService } from "@spt-aki/services/ItemFilterService";
+import { LocaleService } from "@spt-aki/services/LocaleService";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { MathUtil } from "@spt-aki/utils/MathUtil";
+import { ObjectId } from "@spt-aki/utils/ObjectId";
+import { ProbabilityObject, ProbabilityObjectArray, RandomUtil } from "@spt-aki/utils/RandomUtil";
 
 @injectable()
-class ItemHelper
+export class ItemHelper
 {
+    protected readonly defaultInvalidBaseTypes: string[] = [
+        BaseClasses.LOOT_CONTAINER,
+        BaseClasses.MOB_CONTAINER,
+        BaseClasses.STASH,
+        BaseClasses.SORTING_TABLE,
+        BaseClasses.INVENTORY,
+        BaseClasses.STATIONARY_CONTAINER,
+        BaseClasses.POCKETS,
+    ];
+
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("HashUtil") protected hashUtil: HashUtil,
@@ -32,8 +42,9 @@ class ItemHelper
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("HandbookHelper") protected handbookHelper: HandbookHelper,
         @inject("ItemBaseClassService") protected itemBaseClassService: ItemBaseClassService,
+        @inject("ItemFilterService") protected itemFilterService: ItemFilterService,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("LocaleService") protected localeService: LocaleService
+        @inject("LocaleService") protected localeService: LocaleService,
     )
     {}
 
@@ -44,26 +55,11 @@ class ItemHelper
      */
     public isValidItem(tpl: string, invalidBaseTypes: string[] = null): boolean
     {
-        const defaultInvalidBaseTypes: string[] = [
-            BaseClasses.LOOT_CONTAINER,
-            BaseClasses.MOB_CONTAINER,
-            BaseClasses.STASH,
-            BaseClasses.SORTING_TABLE,
-            BaseClasses.INVENTORY,
-            BaseClasses.STATIONARY_CONTAINER,
-            BaseClasses.POCKETS
-        ];
-
         if (invalidBaseTypes === null)
         {
-            invalidBaseTypes = defaultInvalidBaseTypes;
+            invalidBaseTypes = this.defaultInvalidBaseTypes;
         }
 
-        const blacklist = [
-            "5cffa483d7ad1a049e54ef1c", // mag_utes_ckib_nsv_belt_127x108_100
-            "6087e570b998180e9f76dc24", // weapon_hultafors_db5000 Dead Blow Hammer
-            "5d53f4b7a4b936793d58c780"  // scope_ags_npz_pag17_2,7x
-        ];
         const itemDetails = this.getItem(tpl);
 
         if (!itemDetails[0])
@@ -74,9 +70,9 @@ class ItemHelper
         // Is item valid
         return !itemDetails[1]._props.QuestItem
             && itemDetails[1]._type === "Item"
-            && invalidBaseTypes.every(x => !this.isOfBaseclass(tpl, x))
+            && invalidBaseTypes.every((x) => !this.isOfBaseclass(tpl, x))
             && this.getItemPrice(tpl) > 0
-            && blacklist.every(v => !this.isOfBaseclass(tpl, v));
+            && !this.itemFilterService.isItemBlacklisted(tpl);
     }
 
     /**
@@ -116,11 +112,27 @@ class ItemHelper
             return handbookPrice;
         }
 
-        const dynamicPrice = this.getDynamicItemPrice[tpl];
+        const dynamicPrice = this.getDynamicItemPrice(tpl);
         if (dynamicPrice)
         {
             return dynamicPrice;
         }
+
+        return 0;
+    }
+
+    /**
+     * Returns the item price based on the handbook or as a fallback from the prices.json if the item is not
+     * found in the handbook. If the price can't be found at all return 0
+     * @param tpl Item to look price up of
+     * @returns Price in roubles
+     */
+    public getItemMaxPrice(tpl: string): number
+    {
+        const staticPrice = this.getStaticItemPrice(tpl);
+        const dynamicPrice = this.getDynamicItemPrice(tpl);
+
+        return Math.max(staticPrice, dynamicPrice);
     }
 
     /**
@@ -153,15 +165,18 @@ class ItemHelper
         }
 
         return 0;
-    }  
+    }
 
+    /**
+     * Update items upd.StackObjectsCount to be 1 if its upd is missing or StackObjectsCount is undefined
+     * @param item Item to update
+     * @returns Fixed item
+     */
     public fixItemStackCount(item: Item): Item
     {
         if (item.upd === undefined)
         {
-            item.upd = {
-                StackObjectsCount: 1
-            };
+            item.upd = { StackObjectsCount: 1 };
         }
 
         if (item.upd.StackObjectsCount === undefined)
@@ -226,9 +241,7 @@ class ItemHelper
                     parentId: parentId,
                     slotId: slotId,
                     location: 0,
-                    upd: {
-                        StackObjectsCount: count
-                    }
+                    upd: { StackObjectsCount: count },
                 };
                 stackSlotItems.push(stackSlotItem);
             }
@@ -275,7 +288,7 @@ class ItemHelper
 
     /**
      * get normalized value (0-1) based on item condition
-     * @param item 
+     * @param item
      * @returns number between 0 and 1
      */
     public getItemQualityModifier(item: Item): number
@@ -317,7 +330,7 @@ class ItemHelper
             else if (resource && resource.UnitsConsumed > 0)
             {
                 // Things like fuel tank
-                result = resource.UnitsConsumed / itemDetails._props.MaxResource;
+                result = resource.Value / itemDetails._props.MaxResource;
             }
             else if (repairKit)
             {
@@ -335,68 +348,75 @@ class ItemHelper
         return result;
     }
 
-
     /**
      * Get a quality value based on a repairable items (weapon/armor) current state between current and max durability
-     * @param itemDetails 
-     * @param repairable repairable object
-     * @param item 
-     * @returns a number between 0 and 1
+     * @param itemDetails Db details for item we want quality value for
+     * @param repairable Repairable properties
+     * @param item Item quality value is for
+     * @returns A number between 0 and 1
      */
     protected getRepairableItemQualityValue(itemDetails: ITemplateItem, repairable: Repairable, item: Item): number
     {
+        // Edge case, max durability is below durability
+        if (repairable.Durability > repairable.MaxDurability)
+        {
+            this.logger.warning(
+                `Max durability: ${repairable.MaxDurability} for item id: ${item._id} was below Durability: ${repairable.Durability}, adjusting values to match`,
+            );
+            repairable.MaxDurability = repairable.Durability;
+        }
+
         // Armor
         if (itemDetails._props.armorClass)
         {
             return repairable.Durability / itemDetails._props.MaxDurability;
         }
-        else
+
+        // Weapon
+        // Get max dura from props, if it isnt there use repairable max dura value
+        const maxDurability = (itemDetails._props.MaxDurability)
+            ? itemDetails._props.MaxDurability
+            : repairable.MaxDurability;
+        const durability = repairable.Durability / maxDurability;
+
+        if (!durability)
         {
-            // Weapon
-            // Get max dura from props, if it isnt there use repairable max dura value
-            const maxDurability = (itemDetails._props.MaxDurability)
-                ? itemDetails._props.MaxDurability
-                : repairable.MaxDurability;
-            const durability = repairable.Durability / maxDurability;
+            this.logger.error(this.localisationService.getText("item-durability_value_invalid_use_default", item._tpl));
 
-            if (!durability)
-            {
-                this.logger.error(this.localisationService.getText("item-durability_value_invalid_use_default", item._tpl));
-
-                return 1;
-            }
-
-            return Math.sqrt(durability);
+            return 1;
         }
+
+        return Math.sqrt(durability);
     }
 
     /**
      * Recursive function that looks at every item from parameter and gets their childrens Ids + includes parent item in results
-     * @param items 
-     * @param itemID 
+     * @param items Array of items (item + possible children)
+     * @param itemId Parent items id
      * @returns an array of strings
      */
-    public findAndReturnChildrenByItems(items: Item[], itemID: string): string[]
+    public findAndReturnChildrenByItems(items: Item[], itemId: string): string[]
     {
         const list: string[] = [];
 
         for (const childitem of items)
         {
-            if (childitem.parentId === itemID)
+            if (childitem.parentId === itemId)
             {
                 list.push(...this.findAndReturnChildrenByItems(items, childitem._id));
             }
         }
 
-        list.push(itemID); // required
+        list.push(itemId); // Required, push original item id onto array
+
         return list;
     }
 
     /**
      * A variant of findAndReturnChildren where the output is list of item objects instead of their ids.
-     * @param items 
-     * @param baseItemId 
-     * @returns An array of Item objects 
+     * @param items
+     * @param baseItemId
+     * @returns An array of Item objects
      */
     public findAndReturnChildrenAsItems(items: Item[], baseItemId: string): Item[]
     {
@@ -404,18 +424,19 @@ class ItemHelper
 
         for (const childItem of items)
         {
-            // Include itself.
+            // Include itself
             if (childItem._id === baseItemId)
             {
                 list.unshift(childItem);
                 continue;
             }
 
-            if (childItem.parentId === baseItemId && !list.find(item => childItem._id === item._id))
+            if (childItem.parentId === baseItemId && !list.find((item) => childItem._id === item._id))
             {
                 list.push(...this.findAndReturnChildrenAsItems(items, childItem._id));
             }
         }
+
         return list;
     }
 
@@ -431,7 +452,7 @@ class ItemHelper
 
         for (const itemFromAssort of assort)
         {
-            if (itemFromAssort.parentId === itemIdToFind && !list.find(item => itemFromAssort._id === item._id))
+            if (itemFromAssort.parentId === itemIdToFind && !list.find((item) => itemFromAssort._id === item._id))
             {
                 list.push(itemFromAssort);
                 list = list.concat(this.findAndReturnChildrenByAssort(itemFromAssort._id, assort));
@@ -448,7 +469,7 @@ class ItemHelper
      */
     public hasBuyRestrictions(itemToCheck: Item): boolean
     {
-        if (itemToCheck.upd.BuyRestrictionCurrent !== undefined && itemToCheck.upd.BuyRestrictionMax !== undefined)
+        if (itemToCheck.upd?.BuyRestrictionCurrent !== undefined && itemToCheck.upd?.BuyRestrictionMax !== undefined)
         {
             return true;
         }
@@ -467,25 +488,8 @@ class ItemHelper
     }
 
     /**
-     * Can the item passed in be sold to a trader because it is raw money
-     * @param tpl Item template id to check
-     * @returns true if unsellable
-     */
-    public isNotSellable(tpl: string): boolean
-    {
-        const items = [
-            "544901bf4bdc2ddf018b456d", //wad of rubles
-            Money.ROUBLES,
-            Money.EUROS,
-            Money.DOLLARS
-        ];
-
-        return items.includes(tpl);
-    }
-
-    /**
      * Gets the identifier for a child using slotId, locationX and locationY.
-     * @param item 
+     * @param item
      * @returns "slotId OR slotid,locationX,locationY"
      */
     public getChildId(item: Item): string
@@ -505,12 +509,18 @@ class ItemHelper
      */
     public isItemTplStackable(tpl: string): boolean
     {
-        return this.databaseServer.getTables().templates.items[tpl]._props.StackMaxSize > 1;
+        const item = this.databaseServer.getTables().templates.items[tpl];
+        if (!item)
+        {
+            return undefined;
+        }
+
+        return item._props.StackMaxSize > 1;
     }
 
     /**
-     * split item stack if it exceeds its StackMaxSize property
-     * @param itemToSplit item being split into smaller stacks
+     * split item stack if it exceeds its items StackMaxSize property
+     * @param itemToSplit Item to split into smaller stacks
      * @returns Array of split items
      */
     public splitStack(itemToSplit: Item): Item[]
@@ -548,37 +558,33 @@ class ItemHelper
     }
 
     /**
-     * Find Barter items in the inventory
+     * Find Barter items from array of items
      * @param {string} by tpl or id
-     * @param {Object} pmcData
+     * @param {Item[]} items Array of items to iterate over
      * @param {string} barterItemId
      * @returns Array of Item objects
      */
-    public findBarterItems(by: "tpl" | "id", pmcData: IPmcData, barterItemId: string): Item[]
-    { 
+    public findBarterItems(by: "tpl" | "id", items: Item[], barterItemId: string): Item[]
+    {
         // find required items to take after buying (handles multiple items)
-        const barterIDs = typeof barterItemId === "string"
-            ? [barterItemId]
-            : barterItemId;
+        const barterIDs = typeof barterItemId === "string" ? [barterItemId] : barterItemId;
 
         let barterItems: Item[] = [];
         for (const barterID of barterIDs)
         {
-            const filterResult = pmcData.Inventory.items.filter(item =>
+            const filterResult = items.filter((item) =>
             {
-                return by === "tpl"
-                    ? (item._tpl === barterID)
-                    : (item._id === barterID);
+                return by === "tpl" ? (item._tpl === barterID) : (item._id === barterID);
             });
 
             barterItems = Object.assign(barterItems, filterResult);
         }
 
-        if (barterItems.length === 0) 
+        if (barterItems.length === 0)
         {
             this.logger.warning(`No items found for barter Id: ${barterIDs}`);
         }
-    
+
         return barterItems;
     }
 
@@ -587,7 +593,7 @@ class ItemHelper
      * @param pmcData Player profile
      * @param items Items to adjust ID values of
      * @param insuredItems insured items to not replace ids for
-     * @param fastPanel 
+     * @param fastPanel
      * @returns Item[]
      */
     public replaceIDs(pmcData: IPmcData, items: Item[], insuredItems: InsuredItem[] = null, fastPanel = null): Item[]
@@ -601,17 +607,19 @@ class ItemHelper
             {
                 // Insured items shouldn't be renamed
                 // only works for pmcs.
-                if (insuredItems?.find(insuredItem => insuredItem.itemId === item._id))
+                if (insuredItems?.find((insuredItem) => insuredItem.itemId === item._id))
                 {
                     continue;
                 }
 
                 // Do not replace important ID's
-                if (item._id === pmcData.Inventory.equipment
+                if (
+                    item._id === pmcData.Inventory.equipment
                     || item._id === pmcData.Inventory.questRaidItems
                     || item._id === pmcData.Inventory.questStashItems
                     || item._id === pmcData.Inventory.sortingTable
-                    || item._id === pmcData.Inventory.stash)
+                    || item._id === pmcData.Inventory.stash
+                )
                 {
                     continue;
                 }
@@ -757,16 +765,99 @@ class ItemHelper
         return false;
     }
 
+    /**
+     * Checks to see if the item is *actually* moddable in-raid. Checks include the items existence in the database, the
+     * parent items existence in the database, the existence (and value) of the items RaidModdable property, and that
+     * the parents slot-required property exists, matches that of the item, and it's value.
+     *
+     * Note: this function does not preform any checks to see if the item and parent are *actually* related.
+     *
+     * @param item The item to be checked
+     * @param parent The parent of the item to be checked
+     * @returns True if the item is actually moddable, false if it is not, and null if the check cannot be performed.
+     */
+    public isRaidModdable(item: Item, parent: Item): boolean | null
+    {
+        // This check requires the item to have the slotId property populated.
+        if (!item.slotId)
+        {
+            return null;
+        }
+
+        const itemTemplate = this.getItem(item._tpl);
+        const parentTemplate = this.getItem(parent._tpl);
+
+        // Check for RaidModdable property on the item template.
+        let isNotRaidModdable = false;
+        if (itemTemplate[0])
+        {
+            isNotRaidModdable = itemTemplate[1]?._props?.RaidModdable === false;
+        }
+
+        // Check to see if the slot that the item is attached to is marked as required in the parent item's template.
+        let isRequiredSlot = false;
+        if (parentTemplate[0] && parentTemplate[1]?._props?.Slots)
+        {
+            isRequiredSlot = parentTemplate[1]._props.Slots.some((slot) =>
+                slot._name === item.slotId && slot._required
+            );
+        }
+
+        return itemTemplate[0] && parentTemplate[0] && !(isNotRaidModdable || isRequiredSlot);
+    }
+
+    /**
+     * Retrieves the main parent item for a given attachment item.
+     *
+     * This method traverses up the hierarchy of items starting from a given `itemId`, until it finds the main parent
+     * item that is not an attached attachment itself. In other words, if you pass it an item id of a suppressor, it
+     * will traverse up the muzzle brake, barrel, upper receiver, and return the gun that the suppressor is ultimately
+     * attached to, even if that gun is located within multiple containers.
+     *
+     * It's important to note that traversal is expensive, so this method requires that you pass it a Map of the items
+     * to traverse, where the keys are the item IDs and the values are the corresponding Item objects. This alleviates
+     * some of the performance concerns, as it allows for quick lookups of items by ID.
+     *
+     * To generate the map:
+     * ```
+     * const itemsMap = new Map<string, Item>();
+     * items.forEach(item => itemsMap.set(item._id, item));
+     * ```
+     *
+     * @param itemId - The unique identifier of the item for which to find the main parent.
+     * @param itemsMap - A Map containing item IDs mapped to their corresponding Item objects for quick lookup.
+     * @returns The Item object representing the top-most parent of the given item, or `null` if no such parent exists.
+     */
+    public getAttachmentMainParent(itemId: string, itemsMap: Map<string, Item>): Item | null
+    {
+        let currentItem = itemsMap.get(itemId);
+        while (currentItem && this.isAttachmentAttached(currentItem))
+        {
+            currentItem = itemsMap.get(currentItem.parentId);
+        }
+        return currentItem;
+    }
+
+    /**
+     * Determines if an item is an attachment that is currently attached to it's parent item.
+     *
+     * @param item The item to check.
+     * @returns true if the item is attached attachment, otherwise false.
+     */
+    public isAttachmentAttached(item: Item): boolean
+    {
+        return item.slotId !== "hideout" && item.slotId !== "main" && Number.isNaN(Number(item.slotId));
+    }
 
     /**
      * Get the inventory size of an item
      * @param items Item with children
-     * @param rootItemId 
+     * @param rootItemId
      * @returns ItemSize object (width and height)
      */
     public getItemSize(items: Item[], rootItemId: string): ItemHelper.ItemSize
     {
-        const rootTemplate = this.getItem(items.filter(x => x._id === rootItemId)[0]._tpl)[1];
+        const rootTemplate = this.getItem(items.filter((x) => x._id === rootItemId)[0]._tpl)[1];
         const width = rootTemplate._props.Width;
         const height = rootTemplate._props.Height;
 
@@ -798,13 +889,15 @@ class ItemHelper
                 sizeUp = sizeUp < itemTemplate._props.ExtraSizeUp ? itemTemplate._props.ExtraSizeUp : sizeUp;
                 sizeDown = sizeDown < itemTemplate._props.ExtraSizeDown ? itemTemplate._props.ExtraSizeDown : sizeDown;
                 sizeLeft = sizeLeft < itemTemplate._props.ExtraSizeLeft ? itemTemplate._props.ExtraSizeLeft : sizeLeft;
-                sizeRight = sizeRight < itemTemplate._props.ExtraSizeRight ? itemTemplate._props.ExtraSizeRight : sizeRight;
+                sizeRight = sizeRight < itemTemplate._props.ExtraSizeRight
+                    ? itemTemplate._props.ExtraSizeRight
+                    : sizeRight;
             }
         }
 
         return {
             width: width + sizeLeft + sizeRight + forcedLeft + forcedRight,
-            height: height + sizeUp + sizeDown + forcedUp + forcedDown
+            height: height + sizeUp + sizeDown + forcedUp + forcedDown,
         };
     }
 
@@ -842,18 +935,44 @@ class ItemHelper
         let currentStoredCartridgeCount = 0;
         // Location in ammoBox cartridges will be placed
         let location = 0;
+        const maxPerStack = Math.min(ammoBoxMaxCartridgeCount, cartridgeMaxStackSize);
         while (currentStoredCartridgeCount < ammoBoxMaxCartridgeCount)
         {
-            // Get stack size of cartridges
-            const cartridgeCountToAdd = (ammoBoxMaxCartridgeCount <= cartridgeMaxStackSize)
-                ? ammoBoxMaxCartridgeCount
-                : cartridgeMaxStackSize;
+            const remainingSpace = ammoBoxMaxCartridgeCount - currentStoredCartridgeCount;
+            const cartridgeCountToAdd = (remainingSpace < maxPerStack) ? remainingSpace : maxPerStack;
 
             // Add cartridge item into items array
             ammoBox.push(this.createCartridges(ammoBox[0]._id, cartridgeTpl, cartridgeCountToAdd, location));
 
             currentStoredCartridgeCount += cartridgeCountToAdd;
-            location ++;
+            location++;
+        }
+    }
+
+    /**
+     * Check if item is stored inside of a container
+     * @param item Item to check is inside of container
+     * @param desiredContainerSlotId Name of slot to check item is in e.g. SecuredContainer/Backpack
+     * @param items Inventory with child parent items to check
+     * @returns True when item is in container
+     */
+    public itemIsInsideContainer(item: Item, desiredContainerSlotId: string, items: Item[]): boolean
+    {
+        // Get items parent
+        const parent = items.find((x) => x._id === item.parentId);
+        if (!parent)
+        {
+            // No parent, end of line, not inside container
+            return false;
+        }
+
+        if (parent.slotId === desiredContainerSlotId)
+        {
+            return true;
+        }
+        else
+        {
+            return this.itemIsInsideContainer(parent, desiredContainerSlotId, items);
         }
     }
 
@@ -870,7 +989,7 @@ class ItemHelper
         magTemplate: ITemplateItem,
         staticAmmoDist: Record<string, IStaticAmmoDetails[]>,
         caliber: string = undefined,
-        minSizePercent = 0.25
+        minSizePercent = 0.25,
     ): void
     {
         // no caliber defined, choose one at random
@@ -901,16 +1020,31 @@ class ItemHelper
         magazine: Item[],
         magTemplate: ITemplateItem,
         cartridgeTpl: string,
-        minSizePercent = 0.25
+        minSizePercent = 0.25,
     ): void
     {
-        // Get cartrdge properties and max allowed stack size
+        // Get cartridge properties and max allowed stack size
         const cartridgeDetails = this.getItem(cartridgeTpl);
         const cartridgeMaxStackSize = cartridgeDetails[1]._props.StackMaxSize;
 
         // Get max number of cartridges in magazine, choose random value between min/max
-        const magazineCartridgeMaxCount = magTemplate._props.Cartridges[0]._max_count;
-        const desiredStackCount = this.randomUtil.getInt(Math.round(minSizePercent * magazineCartridgeMaxCount), magazineCartridgeMaxCount);
+        const magazineCartridgeMaxCount = magTemplate._props.Cartridges[0]?._max_count;
+        if (!magazineCartridgeMaxCount)
+        {
+            this.logger.warning(`Magazine: ${magTemplate._id} ${magTemplate._name} lacks a Cartridges array, unable to fill magazine with ammo`);
+
+            return;
+        }
+
+        const desiredStackCount = this.randomUtil.getInt(
+            Math.round(minSizePercent * magazineCartridgeMaxCount),
+            magazineCartridgeMaxCount,
+        );
+
+        if (magazine.length > 1)
+        {
+            this.logger.warning(`Magazine ${magTemplate._name} already has cartridges defined, this may cause issues`);
+        }
 
         // Loop over cartridge count and add stacks to magazine
         let currentStoredCartridgeCount = 0;
@@ -933,42 +1067,49 @@ class ItemHelper
             magazine.push(this.createCartridges(magazine[0]._id, cartridgeTpl, cartridgeCountToAdd, location));
 
             currentStoredCartridgeCount += cartridgeCountToAdd;
-            location ++;
+            location++;
         }
     }
 
+    /**
+     * Choose a random bullet type from the list of possible a magazine has
+     * @param magTemplate Magazine template from Db
+     * @returns Tpl of cartridge
+     */
     protected getRandomValidCaliber(magTemplate: ITemplateItem): string
     {
         const ammoTpls = magTemplate._props.Cartridges[0]._props.filters[0].Filter;
         const calibers = [
             ...new Set(
-                ammoTpls.filter(
-                    (x: string) => this.getItem(x)[0]
-                ).map(
-                    (x: string) => this.getItem(x)[1]._props.Caliber
-                )
-            )
+                ammoTpls.filter((x: string) => this.getItem(x)[0]).map((x: string) =>
+                    this.getItem(x)[1]._props.Caliber
+                ),
+            ),
         ];
         return this.randomUtil.drawRandomFromList(calibers)[0];
     }
 
+    /**
+     * Chose a randomly weighted cartridge that fits
+     * @param caliber Desired caliber
+     * @param staticAmmoDist Cartridges and thier weights
+     * @returns Tpl of cartridge
+     */
     protected drawAmmoTpl(caliber: string, staticAmmoDist: Record<string, IStaticAmmoDetails[]>): string
     {
         const ammoArray = new ProbabilityObjectArray<string>(this.mathUtil, this.jsonUtil);
         for (const icd of staticAmmoDist[caliber])
         {
-            ammoArray.push(
-                new ProbabilityObject(icd.tpl, icd.relativeProbability)
-            );
+            ammoArray.push(new ProbabilityObject(icd.tpl, icd.relativeProbability));
         }
         return ammoArray.draw(1)[0];
     }
 
     /**
-     * 
+     * Create a basic cartrige object
      * @param parentId container cartridges will be placed in
      * @param ammoTpl Cartridge to insert
-     * @param stackCount Count of cartridges inside parent 
+     * @param stackCount Count of cartridges inside parent
      * @param location Location inside parent (e.g. 0, 1)
      * @returns Item
      */
@@ -980,13 +1121,13 @@ class ItemHelper
             parentId: parentId,
             slotId: "cartridges",
             location: location,
-            upd: { StackObjectsCount: stackCount }
+            upd: { StackObjectsCount: stackCount },
         };
     }
 
     /**
      * Get the size of a stack, return 1 if no stack object count property found
-     * @param item Item to get stack size of 
+     * @param item Item to get stack size of
      * @returns size of stack
      */
     public getItemStackSize(item: Item): number
@@ -1008,16 +1149,20 @@ class ItemHelper
     {
         return this.localeService.getLocaleDb()[`${itemTpl} Name`];
     }
+
+    public getItemTplsOfBaseType(desiredBaseType: string): string[]
+    {
+        return Object.values(this.databaseServer.getTables().templates.items).filter((x) =>
+            x._parent === desiredBaseType
+        ).map((x) => x._id);
+    }
 }
 
 namespace ItemHelper
 {
     export interface ItemSize
     {
-        width: number
-        height: number
+        width: number;
+        height: number;
     }
 }
-
-export { ItemHelper };
-

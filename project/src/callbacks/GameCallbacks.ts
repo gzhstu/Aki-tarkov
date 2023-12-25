@@ -1,33 +1,46 @@
 import { inject, injectable } from "tsyringe";
 
-import { GameController } from "../controllers/GameController";
-import { IEmptyRequestData } from "../models/eft/common/IEmptyRequestData";
-import { ICheckVersionResponse } from "../models/eft/game/ICheckVersionResponse";
-import { ICurrentGroupResponse } from "../models/eft/game/ICurrentGroupResponse";
-import { IGameConfigResponse } from "../models/eft/game/IGameConfigResponse";
-import { IGameEmptyCrcRequestData } from "../models/eft/game/IGameEmptyCrcRequestData";
-import { IGameKeepAliveResponse } from "../models/eft/game/IGameKeepAliveResponse";
-import { IGameLogoutResponseData } from "../models/eft/game/IGameLogoutResponseData";
-import { IGameStartResponse } from "../models/eft/game/IGameStartResponse";
-import { IReportNicknameRequestData } from "../models/eft/game/IReportNicknameRequestData";
-import { IServerDetails } from "../models/eft/game/IServerDetails";
-import { IVersionValidateRequestData } from "../models/eft/game/IVersionValidateRequestData";
-import { IGetBodyResponseData } from "../models/eft/httpResponse/IGetBodyResponseData";
-import { INullResponseData } from "../models/eft/httpResponse/INullResponseData";
-import { SaveServer } from "../servers/SaveServer";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
-import { Watermark } from "../utils/Watermark";
+import { GameController } from "@spt-aki/controllers/GameController";
+import { OnLoad } from "@spt-aki/di/OnLoad";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { ICheckVersionResponse } from "@spt-aki/models/eft/game/ICheckVersionResponse";
+import { ICurrentGroupResponse } from "@spt-aki/models/eft/game/ICurrentGroupResponse";
+import { IGameConfigResponse } from "@spt-aki/models/eft/game/IGameConfigResponse";
+import { IGameEmptyCrcRequestData } from "@spt-aki/models/eft/game/IGameEmptyCrcRequestData";
+import { IGameKeepAliveResponse } from "@spt-aki/models/eft/game/IGameKeepAliveResponse";
+import { IGameLogoutResponseData } from "@spt-aki/models/eft/game/IGameLogoutResponseData";
+import { IGameStartResponse } from "@spt-aki/models/eft/game/IGameStartResponse";
+import { IGetRaidTimeRequest } from "@spt-aki/models/eft/game/IGetRaidTimeRequest";
+import { IGetRaidTimeResponse } from "@spt-aki/models/eft/game/IGetRaidTimeResponse";
+import { IReportNicknameRequestData } from "@spt-aki/models/eft/game/IReportNicknameRequestData";
+import { IServerDetails } from "@spt-aki/models/eft/game/IServerDetails";
+import { IVersionValidateRequestData } from "@spt-aki/models/eft/game/IVersionValidateRequestData";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { INullResponseData } from "@spt-aki/models/eft/httpResponse/INullResponseData";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
+import { Watermark } from "@spt-aki/utils/Watermark";
 
 @injectable()
-class GameCallbacks
+export class GameCallbacks implements OnLoad
 {
     constructor(
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("Watermark") protected watermark: Watermark,
         @inject("SaveServer") protected saveServer: SaveServer,
-        @inject("GameController") protected gameController: GameController
+        @inject("GameController") protected gameController: GameController,
     )
     {}
+
+    public async onLoad(): Promise<void>
+    {
+        this.gameController.load();
+    }
+
+    public getRoute(): string
+    {
+        return "aki-game";
+    }
 
     /**
      * Handle client/game/version/validate
@@ -50,7 +63,7 @@ class GameCallbacks
         this.gameController.gameStart(url, info, sessionID, startTimeStampMS);
         return this.httpResponse.getBody({
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            utc_time: startTimeStampMS / 1000
+            utc_time: startTimeStampMS / 1000,
         });
     }
 
@@ -60,19 +73,25 @@ class GameCallbacks
      * @returns IGameLogoutResponseData
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public gameLogout(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IGameLogoutResponseData>
+    public gameLogout(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IGameLogoutResponseData>
     {
         this.saveServer.save();
-        return this.httpResponse.getBody({
-            status: "ok"
-        });
+        return this.httpResponse.getBody({ status: "ok" });
     }
 
     /**
      * Handle client/game/config
      * @returns IGameConfigResponse
      */
-    public getGameConfig(url: string, info: IGameEmptyCrcRequestData, sessionID: string): IGetBodyResponseData<IGameConfigResponse>
+    public getGameConfig(
+        url: string,
+        info: IGameEmptyCrcRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IGameConfigResponse>
     {
         return this.httpResponse.getBody(this.gameController.getGameConfig(sessionID));
     }
@@ -89,7 +108,11 @@ class GameCallbacks
     /**
      * Handle client/match/group/current
      */
-    public getCurrentGroup(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<ICurrentGroupResponse> 
+    public getCurrentGroup(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<ICurrentGroupResponse>
     {
         return this.httpResponse.getBody(this.gameController.getCurrentGroup(sessionID));
     }
@@ -98,7 +121,11 @@ class GameCallbacks
      * Handle client/checkVersion
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public validateGameVersion(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<ICheckVersionResponse>
+    public validateGameVersion(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<ICheckVersionResponse>
     {
         return this.httpResponse.getBody(this.gameController.getValidGameVersion(sessionID));
     }
@@ -108,7 +135,11 @@ class GameCallbacks
      * @returns IGameKeepAliveResponse
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public gameKeepalive(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IGameKeepAliveResponse>
+    public gameKeepalive(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IGameKeepAliveResponse>
     {
         return this.httpResponse.getBody(this.gameController.getKeepAlive(sessionID));
     }
@@ -120,9 +151,7 @@ class GameCallbacks
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public getVersion(url: string, info: IEmptyRequestData, sessionID: string): string
     {
-        return this.httpResponse.noBody({
-            Version: this.watermark.getInGameVersionLabel()
-        });
+        return this.httpResponse.noBody({ Version: this.watermark.getInGameVersionLabel() });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -130,7 +159,14 @@ class GameCallbacks
     {
         return this.httpResponse.nullResponse();
     }
+
+        /**
+     * Handle singleplayer/settings/getRaidTime
+     * @returns string
+     */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    public getRaidTime(url: string, request: IGetRaidTimeRequest, sessionID: string): IGetRaidTimeResponse
+    {
+        return this.httpResponse.noBody(this.gameController.getRaidTime(sessionID, request));
+    }
 }
-
-export { GameCallbacks };
-

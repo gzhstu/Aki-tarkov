@@ -1,9 +1,9 @@
 import { inject, injectable } from "tsyringe";
 
-import { ItemHelper } from "../helpers/ItemHelper";
-import { ITemplateItem } from "../models/eft/common/tables/ITemplateItem";
-import { BaseClasses } from "../models/enums/BaseClasses";
-import { DatabaseServer } from "../servers/DatabaseServer";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { ITemplateItem } from "@spt-aki/models/eft/common/tables/ITemplateItem";
+import { BaseClasses } from "@spt-aki/models/enums/BaseClasses";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
 
 @injectable()
 export class RagfairLinkedItemService
@@ -12,9 +12,9 @@ export class RagfairLinkedItemService
 
     constructor(
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
-        @inject("ItemHelper") protected itemHelper: ItemHelper
+        @inject("ItemHelper") protected itemHelper: ItemHelper,
     )
-    { }
+    {}
 
     public getLinkedItems(linkedSearchId: string): Set<string>
     {
@@ -34,7 +34,7 @@ export class RagfairLinkedItemService
     public getLinkedDbItems(itemTpl: string): ITemplateItem[]
     {
         const linkedItemsToWeaponTpls = this.getLinkedItems(itemTpl);
-        return [...linkedItemsToWeaponTpls].map(x =>
+        return [...linkedItemsToWeaponTpls].map((x) =>
         {
             const itemDetails = this.itemHelper.getItem(x);
             return itemDetails[1];
@@ -88,11 +88,14 @@ export class RagfairLinkedItemService
     /**
      * Add ammo to revolvers linked item dictionary
      * @param cylinder Revolvers cylinder
-     * @param applyLinkedItems 
+     * @param applyLinkedItems
      */
-    protected addRevolverCylinderAmmoToLinkedItems(cylinder: ITemplateItem, applyLinkedItems: (items: string[]) => void): void
+    protected addRevolverCylinderAmmoToLinkedItems(
+        cylinder: ITemplateItem,
+        applyLinkedItems: (items: string[]) => void,
+    ): void
     {
-        const cylinderMod = cylinder._props.Slots.find(x => x._name === "mod_magazine");
+        const cylinderMod = cylinder._props.Slots.find((x) => x._name === "mod_magazine");
         if (cylinderMod)
         {
             // Get the first cylinder filter tpl
@@ -108,8 +111,8 @@ export class RagfairLinkedItemService
 
     /**
      * Scans a given slot type for filters and returns them as a Set
-     * @param item 
-     * @param slot 
+     * @param item
+     * @param slot
      * @returns array of ids
      */
     protected getFilters(item: ITemplateItem, slot: string): string[]

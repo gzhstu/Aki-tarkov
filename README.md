@@ -21,7 +21,7 @@ git config --local user.email "USERNAME@SOMETHING.com"
 
 ## Observations
 
-- The server was tested to work with **NodeJS 16.17.1**, if you are using a different version and experiencing difficulties change it before looking for support
+- The server was tested to work with **NodeJS 18.15.0**, if you are using a different version and experiencing difficulties change it before looking for support
 - If you are updating a branch you've had for some time, run `npm ci` before running any tasks. This will run the clean and install target from npm.
 - You can debug your mods using the server, just copy your mod files into the `user/mods` folder and put breakpoints on the **JS** files. **DO NOT** contact the dev team for support on this.
 
@@ -89,12 +89,15 @@ Player profile is stored in SPT folder as a JSON file, allowing for changes to p
 	 - bossKojainy (Shturman)
 	 - bossSanitar
 	 - bossTagilla
-	 - bosszryachiy
+	 - bossZryachiy
+	 - bossBoar (Kaban)
+	 - bossBoarSniper
 	 - curedAssault
 	 - exUsec (Rogue)
 	 - followerBigPipe
 		 - Grenade launcher
 	 - followerBirdEye
+	 - followerBoar
 	 - followerBully
 	 - followerGluharAssault
 	 - followerGluharScout
@@ -103,17 +106,17 @@ Player profile is stored in SPT folder as a JSON file, allowing for changes to p
 	 - followerKojaniy
 	 - followerSanitar
 	 - followerzryachiy
-	 - gifter
-		 - ~~Gives gifts~~ NOT IMPLEMENTED
+	 - gifter (Santa)
+		 - Gives gifts (partially implemented)
 	 - marksman
-	 - pmcBot (raider)
+	 - pmcBot (Raider)
 	 - sectantPriest (Cultist)
 	 - sectantWarrior (Cultist)
 - Gear
 	- Semi-randomised gear chosen with weighting system
 	- Randomised durability of gear
 - Ammo
-	- Ammo weighting system
+	- Ammo weighting system to mimic live
 - Loot
 	- Semi-randomised loot
 	- Item type spawn limit system
@@ -130,20 +133,24 @@ Player profile is stored in SPT folder as a JSON file, allowing for changes to p
 		 - Randomised attachments with percentage based chance to appear
 			 - Face shields
 			 - Flashlights
+	- Randomised AI brains
+		- Chooses random AI behaviour from pool of possible bot types (e.g. raider/rogue/killa)
 	 - Dogtags
 		 - Random level
 		 - Random name
 	 - Voices
 		 - Bear/usec voices for each faction
-	 - Item blacklist/whitelist
-	 - Item
+	 - Loot item blacklist/whitelist
 	 - Highly configurable in config
+	 - Level-relative gear for PMCs from levels 1-15 and 15+
+	 	- 1-15 bots have lower-tier items
+		- 15+ bots have access to anything
 
 ## Inventory
  - Move/split/delete stacks
  - Tags (add/modify/remove)
  - Armor/weapon kit item repair
- - ~~Auto-sort~~ (SEMI-BROKEN - MOVES ITEMS OUT OF VISIBLE INVENTORY SPACE)
+ - Auto-sort
  - Out of raid healing
  - Out of raid eating
  - Special slots (compass etc)
@@ -232,7 +239,7 @@ Player profile is stored in SPT folder as a JSON file, allowing for changes to p
 		- Negative effects removal rate x2
 	- Illumination
 	- Intel centre
-		- ~~Unlocks scav tasks from fence~~ NOT IMPLEMENTED
+		- ~~Unlocks scav tasks from fence~~ NOT IMPLEMENTED - unlocks at level 5
 		- ~~Reduces insurance return time by 20%~~ NOT IMPLEMENTED
 		- Quest money reward boost
 	- Lavatory
@@ -280,7 +287,15 @@ Player profile is stored in SPT folder as a JSON file, allowing for changes to p
 - Airdrops
 	- Randomised chance of spawning
 	- Fire red flare to request an airdrop
-	- ~~Drops 1 of 3 randomised loot crate types~~ NOT IMPLEMENTED
+	- Drops 'themed' crates:
+		- Weapons / armor
+			- Only weapons and armor
+		- Food / medical
+			- Only food and medical items
+		- Barter goods
+			- Only barter goods
+		- Mixed
+			- A mixture of any of the above items
 	- Drops lootable crate in:
 		- Customs
 		- Reserve
@@ -292,6 +307,9 @@ Player profile is stored in SPT folder as a JSON file, allowing for changes to p
 - Raid damage
 	- Exiting a raid with injury to player character will be persisted out of raid
 - Post-raid therapist healing
+- Scav Raids
+	- Adjusted time when running raids as scav
+	- Simulated loot being taken by other players the later into the raid player starts
 
 ## Messages
 - Receive from traders

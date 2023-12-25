@@ -1,38 +1,41 @@
-export interface IHealthTreatmentRequestData 
+export interface IHealthTreatmentRequestData
 {
-    Action: "RestoreHealth"
-    trader: string
-    items: Item[]
-    difference: Difference
-    timestamp: number
+    Action: "RestoreHealth";
+    trader: string;
+    items: Cost[];
+    difference: Difference;
+    timestamp: number;
 }
 
-export interface Item 
+export interface Cost
 {
-    id: string
-    count: number
+    /** Id of stack to take money from */
+    id: string;
+    /** Amount of money to take off player for treatment */
+    count: number;
 }
 
-export interface Difference 
+export interface Difference
 {
-    BodyParts: BodyParts
-    Energy: number
-    Hydration: number
+    BodyParts: BodyParts;
+    Energy: number;
+    Hydration: number;
 }
 
-export interface BodyParts 
+export interface BodyParts
 {
-    Head: BodyPart
-    Chest: BodyPart
-    Stomach: BodyPart
-    LeftArm: BodyPart
-    RightArm: BodyPart
-    LeftLeg: BodyPart
-    RightLeg: BodyPart
+    Head: BodyPart;
+    Chest: BodyPart;
+    Stomach: BodyPart;
+    LeftArm: BodyPart;
+    RightArm: BodyPart;
+    LeftLeg: BodyPart;
+    RightLeg: BodyPart;
 }
 
-export interface BodyPart 
+export interface BodyPart
 {
-    Health: number
-    Effects: string[]
+    Health: number;
+    /** Effects in array are to be removed */
+    Effects: string[];
 }

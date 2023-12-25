@@ -1,36 +1,32 @@
 import { inject, injectable } from "tsyringe";
 
-import { RagfairAssortGenerator } from "../generators/RagfairAssortGenerator";
-import { RagfairOfferGenerator } from "../generators/RagfairOfferGenerator";
-import { Item } from "../models/eft/common/tables/IItem";
-import { ITrader, ITraderAssort } from "../models/eft/common/tables/ITrader";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { Traders } from "../models/enums/Traders";
-import { ITraderConfig } from "../models/spt/config/ITraderConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { FenceService } from "../services/FenceService";
-import { LocalisationService } from "../services/LocalisationService";
-import { TraderAssortService } from "../services/TraderAssortService";
-import { TraderPurchasePersisterService } from "../services/TraderPurchasePersisterService";
-import { JsonUtil } from "../utils/JsonUtil";
-import { MathUtil } from "../utils/MathUtil";
-import { TimeUtil } from "../utils/TimeUtil";
-import { AssortHelper } from "./AssortHelper";
-import { PaymentHelper } from "./PaymentHelper";
-import { ProfileHelper } from "./ProfileHelper";
-import { TraderHelper } from "./TraderHelper";
+import { RagfairAssortGenerator } from "@spt-aki/generators/RagfairAssortGenerator";
+import { RagfairOfferGenerator } from "@spt-aki/generators/RagfairOfferGenerator";
+import { AssortHelper } from "@spt-aki/helpers/AssortHelper";
+import { PaymentHelper } from "@spt-aki/helpers/PaymentHelper";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { TraderHelper } from "@spt-aki/helpers/TraderHelper";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { ITrader, ITraderAssort } from "@spt-aki/models/eft/common/tables/ITrader";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { Traders } from "@spt-aki/models/enums/Traders";
+import { ITraderConfig } from "@spt-aki/models/spt/config/ITraderConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { FenceService } from "@spt-aki/services/FenceService";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { TraderAssortService } from "@spt-aki/services/TraderAssortService";
+import { TraderPurchasePersisterService } from "@spt-aki/services/TraderPurchasePersisterService";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { MathUtil } from "@spt-aki/utils/MathUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class TraderAssortHelper
 {
     protected traderConfig: ITraderConfig;
-    protected mergedQuestAssorts: Record<string, Record<string, string>> = {
-        started: {},
-        success: {},
-        fail: {}
-    };
+    protected mergedQuestAssorts: Record<string, Record<string, string>> = { started: {}, success: {}, fail: {} };
     protected createdMergedQuestAssorts = false;
 
     constructor(
@@ -46,10 +42,11 @@ export class TraderAssortHelper
         @inject("RagfairOfferGenerator") protected ragfairOfferGenerator: RagfairOfferGenerator,
         @inject("TraderAssortService") protected traderAssortService: TraderAssortService,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("TraderPurchasePersisterService") protected traderPurchasePersisterService: TraderPurchasePersisterService,
+        @inject("TraderPurchasePersisterService") protected traderPurchasePersisterService:
+            TraderPurchasePersisterService,
         @inject("TraderHelper") protected traderHelper: TraderHelper,
         @inject("FenceService") protected fenceService: FenceService,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.traderConfig = this.configServer.getConfig(ConfigTypes.TRADER);
@@ -61,6 +58,7 @@ export class TraderAssortHelper
      * Filter out assorts not unlocked due to level OR quest completion
      * @param sessionId session id
      * @param traderId traders id
+     * @param flea Should assorts player hasn't unlocked be returned - default false
      * @returns a traders' assorts
      */
     public getAssort(sessionId: string, traderId: string, flea = false): ITraderAssort
@@ -81,7 +79,7 @@ export class TraderAssortHelper
 
         // Strip assorts player should not see yet
         if (!flea)
-        {            
+        {
             trader.assort = this.assortHelper.stripLockedLoyaltyAssort(pmcProfile, traderId, trader.assort);
         }
 
@@ -89,21 +87,28 @@ export class TraderAssortHelper
         trader.assort.nextResupply = trader.base.nextResupply;
 
         // Adjust displayed assort counts based on values stored in profile
-        const assortPurchasesfromTrader = this.traderPurchasePersisterService.getProfileTraderPurchases(sessionId, traderId);
+        const assortPurchasesfromTrader = this.traderPurchasePersisterService.getProfileTraderPurchases(
+            sessionId,
+            traderId,
+        );
         for (const assortId in assortPurchasesfromTrader)
         {
             // Find assort we want to update current buy count of
-            const assortToAdjust = trader.assort.items.find(x => x._id === assortId);
+            const assortToAdjust = trader.assort.items.find((x) => x._id === assortId);
             if (!assortToAdjust)
             {
-                this.logger.debug(`Cannot find trader: ${trader.base.nickname} assort: ${assortId} to adjust BuyRestrictionCurrent value, skipping`);
+                this.logger.debug(
+                    `Cannot find trader: ${trader.base.nickname} assort: ${assortId} to adjust BuyRestrictionCurrent value, skipping`,
+                );
 
                 continue;
             }
 
             if (!assortToAdjust.upd)
             {
-                this.logger.debug(`Unable to adjust assort ${assortToAdjust._id} item: ${assortToAdjust._tpl} BuyRestrictionCurrent value, assort has an undefined upd object`);
+                this.logger.debug(
+                    `Unable to adjust assort ${assortToAdjust._id} item: ${assortToAdjust._tpl} BuyRestrictionCurrent value, assort has an undefined upd object`,
+                );
 
                 continue;
             }
@@ -117,7 +122,13 @@ export class TraderAssortHelper
             this.hydrateMergedQuestAssorts();
             this.createdMergedQuestAssorts = true;
         }
-        trader.assort = this.assortHelper.stripLockedQuestAssort(pmcProfile, traderId, trader.assort, this.mergedQuestAssorts, flea);
+        trader.assort = this.assortHelper.stripLockedQuestAssort(
+            pmcProfile,
+            traderId,
+            trader.assort,
+            this.mergedQuestAssorts,
+            flea,
+        );
 
         // Multiply price if multiplier is other than 1
         if (this.traderConfig.traderPriceMultipler !== 1)
@@ -234,7 +245,7 @@ export class TraderAssortHelper
             barter_scheme: {},
             // eslint-disable-next-line @typescript-eslint/naming-convention
             loyal_level_items: {},
-            nextResupply: null
+            nextResupply: null,
         };
     }
 }

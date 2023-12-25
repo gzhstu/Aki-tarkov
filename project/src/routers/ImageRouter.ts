@@ -1,9 +1,9 @@
-import { IncomingMessage, ServerResponse } from "http";
+import { IncomingMessage, ServerResponse } from "node:http";
 import { inject, injectable } from "tsyringe";
 
-import { ImageRouteService } from "../services/mod/image/ImageRouteService";
-import { HttpFileUtil } from "../utils/HttpFileUtil";
-import { VFS } from "../utils/VFS";
+import { ImageRouteService } from "@spt-aki/services/mod/image/ImageRouteService";
+import { HttpFileUtil } from "@spt-aki/utils/HttpFileUtil";
+import { VFS } from "@spt-aki/utils/VFS";
 
 @injectable()
 export class ImageRouter
@@ -11,9 +11,9 @@ export class ImageRouter
     constructor(
         @inject("VFS") protected vfs: VFS,
         @inject("ImageRouteService") protected imageRouteService: ImageRouteService,
-        @inject("HttpFileUtil") protected httpFileUtil: HttpFileUtil
+        @inject("HttpFileUtil") protected httpFileUtil: HttpFileUtil,
     )
-    { }
+    {}
 
     public addRoute(key: string, valueToAdd: string): void
     {

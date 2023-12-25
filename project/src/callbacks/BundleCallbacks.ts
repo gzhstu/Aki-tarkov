@@ -1,12 +1,12 @@
 import { inject, injectable } from "tsyringe";
 
-import { BundleLoader } from "../loaders/BundleLoader";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { IHttpConfig } from "../models/spt/config/IHttpConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { HttpFileUtil } from "../utils/HttpFileUtil";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
+import { BundleLoader } from "@spt-aki/loaders/BundleLoader";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { IHttpConfig } from "@spt-aki/models/spt/config/IHttpConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { HttpFileUtil } from "@spt-aki/utils/HttpFileUtil";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
 
 @injectable()
 export class BundleCallbacks
@@ -18,14 +18,14 @@ export class BundleCallbacks
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("HttpFileUtil") protected httpFileUtil: HttpFileUtil,
         @inject("BundleLoader") protected bundleLoader: BundleLoader,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.httpConfig = this.configServer.getConfig(ConfigTypes.HTTP);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public sendBundle(sessionID: string, req: any, resp: any, body: any): any
+    public sendBundle(sessionID: string, req: any, resp: any, body: any): void
     {
         this.logger.info(`[BUNDLE]: ${req.url}`);
 
@@ -42,7 +42,7 @@ export class BundleCallbacks
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public getBundles(url: string, info: any, sessionID: string): string
     {
-        const local = (this.httpConfig.ip === "127.0.0.1" || this.httpConfig.ip === "localhost");
+        const local = this.httpConfig.ip === "127.0.0.1" || this.httpConfig.ip === "localhost";
         return this.httpResponse.noBody(this.bundleLoader.getBundles(local));
     }
 

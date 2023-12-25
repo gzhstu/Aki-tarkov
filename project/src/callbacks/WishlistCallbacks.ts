@@ -1,16 +1,15 @@
 import { inject, injectable } from "tsyringe";
 
-import { WishlistController } from "../controllers/WishlistController";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { IWishlistActionData } from "../models/eft/wishlist/IWishlistActionData";
+import { WishlistController } from "@spt-aki/controllers/WishlistController";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { IWishlistActionData } from "@spt-aki/models/eft/wishlist/IWishlistActionData";
 
 @injectable()
 export class WishlistCallbacks
 {
-    constructor(
-        @inject("WishlistController") protected wishlistController: WishlistController)
-    { }
+    constructor(@inject("WishlistController") protected wishlistController: WishlistController)
+    {}
 
     /** Handle AddToWishList event */
     public addToWishlist(pmcData: IPmcData, body: IWishlistActionData, sessionID: string): IItemEventRouterResponse

@@ -1,34 +1,33 @@
 import { inject, injectable } from "tsyringe";
 
-import { ApplicationContext } from "../context/ApplicationContext";
-import { ContextVariableType } from "../context/ContextVariableType";
-import { BotGenerator } from "../generators/BotGenerator";
-import { BotDifficultyHelper } from "../helpers/BotDifficultyHelper";
-import { BotHelper } from "../helpers/BotHelper";
-import { ProfileHelper } from "../helpers/ProfileHelper";
-import { IGenerateBotsRequestData } from "../models/eft/bot/IGenerateBotsRequestData";
-import { IBotBase } from "../models/eft/common/tables/IBotBase";
-import { IBotCore } from "../models/eft/common/tables/IBotCore";
-import { Difficulty } from "../models/eft/common/tables/IBotType";
-import {
-    IGetRaidConfigurationRequestData
-} from "../models/eft/match/IGetRaidConfigurationRequestData";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { BotGenerationDetails } from "../models/spt/bots/BotGenerationDetails";
-import { IBotConfig } from "../models/spt/config/IBotConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { BotGenerationCacheService } from "../services/BotGenerationCacheService";
-import { LocalisationService } from "../services/LocalisationService";
-import { MatchBotDetailsCacheService } from "../services/MatchBotDetailsCacheService";
-import { JsonUtil } from "../utils/JsonUtil";
+import { ApplicationContext } from "@spt-aki/context/ApplicationContext";
+import { ContextVariableType } from "@spt-aki/context/ContextVariableType";
+import { BotGenerator } from "@spt-aki/generators/BotGenerator";
+import { BotDifficultyHelper } from "@spt-aki/helpers/BotDifficultyHelper";
+import { BotHelper } from "@spt-aki/helpers/BotHelper";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { IGenerateBotsRequestData } from "@spt-aki/models/eft/bot/IGenerateBotsRequestData";
+import { IBotBase } from "@spt-aki/models/eft/common/tables/IBotBase";
+import { IBotCore } from "@spt-aki/models/eft/common/tables/IBotCore";
+import { Difficulty } from "@spt-aki/models/eft/common/tables/IBotType";
+import { IGetRaidConfigurationRequestData } from "@spt-aki/models/eft/match/IGetRaidConfigurationRequestData";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { BotGenerationDetails } from "@spt-aki/models/spt/bots/BotGenerationDetails";
+import { IBotConfig } from "@spt-aki/models/spt/config/IBotConfig";
+import { IPmcConfig } from "@spt-aki/models/spt/config/IPmcConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { BotGenerationCacheService } from "@spt-aki/services/BotGenerationCacheService";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { MatchBotDetailsCacheService } from "@spt-aki/services/MatchBotDetailsCacheService";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class BotController
 {
     protected botConfig: IBotConfig;
-    public static readonly pmcTypeLabel = "PMC";
+    protected pmcConfig: IPmcConfig;
 
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
@@ -42,10 +41,11 @@ export class BotController
         @inject("ProfileHelper") protected profileHelper: ProfileHelper,
         @inject("ConfigServer") protected configServer: ConfigServer,
         @inject("ApplicationContext") protected applicationContext: ApplicationContext,
-        @inject("JsonUtil") protected jsonUtil: JsonUtil
+        @inject("JsonUtil") protected jsonUtil: JsonUtil,
     )
     {
         this.botConfig = this.configServer.getConfig(ConfigTypes.BOT);
+        this.pmcConfig = this.configServer.getConfig(ConfigTypes.PMC);
     }
 
     /**
@@ -55,9 +55,7 @@ export class BotController
      */
     public getBotPresetGenerationLimit(type: string): number
     {
-        return this.botConfig.presetBatch[(type === "assaultGroup")
-            ? "assault"
-            : type];
+        return this.botConfig.presetBatch[(type === "assaultGroup") ? "assault" : type];
     }
 
     /**
@@ -79,10 +77,14 @@ export class BotController
      */
     public getBotDifficulty(type: string, difficulty: string): Difficulty
     {
-        const raidConfig = this.applicationContext.getLatestValue(ContextVariableType.RAID_CONFIGURATION)?.getValue<IGetRaidConfigurationRequestData>();
+        const raidConfig = this.applicationContext.getLatestValue(ContextVariableType.RAID_CONFIGURATION)?.getValue<
+            IGetRaidConfigurationRequestData
+        >();
         if (!raidConfig)
         {
-            this.logger.error("applicationContex could not find RAID_CONFIGURATION value, raidConfig is undefined");
+            this.logger.error(
+                this.localisationService.getText("bot-missing_application_context", "RAID_CONFIGURATION"),
+            );
         }
 
         // Check value chosen in pre-raid difficulty dropdown
@@ -90,27 +92,42 @@ export class BotController
         const botDifficultyDropDownValue = raidConfig.wavesSettings.botDifficulty.toLowerCase();
         if (botDifficultyDropDownValue !== "asonline")
         {
-            difficulty = this.botDifficultyHelper.convertBotDifficultyDropdownToBotDifficulty(botDifficultyDropDownValue);
+            difficulty = this.botDifficultyHelper.convertBotDifficultyDropdownToBotDifficulty(
+                botDifficultyDropDownValue,
+            );
         }
 
         let difficultySettings: Difficulty;
         const lowercasedBotType = type.toLowerCase();
         switch (lowercasedBotType)
         {
-            case this.botConfig.pmc.bearType.toLowerCase():
-                difficultySettings = this.botDifficultyHelper.getPmcDifficultySettings("bear", difficulty, this.botConfig.pmc.usecType, this.botConfig.pmc.bearType);
+            case this.pmcConfig.bearType.toLowerCase():
+                difficultySettings = this.botDifficultyHelper.getPmcDifficultySettings(
+                    "bear",
+                    difficulty,
+                    this.pmcConfig.usecType,
+                    this.pmcConfig.bearType,
+                );
                 break;
-            case this.botConfig.pmc.usecType.toLowerCase():
-                difficultySettings = this.botDifficultyHelper.getPmcDifficultySettings("usec", difficulty, this.botConfig.pmc.usecType, this.botConfig.pmc.bearType);
+            case this.pmcConfig.usecType.toLowerCase():
+                difficultySettings = this.botDifficultyHelper.getPmcDifficultySettings(
+                    "usec",
+                    difficulty,
+                    this.pmcConfig.usecType,
+                    this.pmcConfig.bearType,
+                );
                 break;
             default:
                 difficultySettings = this.botDifficultyHelper.getBotDifficultySettings(type, difficulty);
                 // Don't add pmcs to gifter enemy list
                 if (type.toLowerCase() !== "gifter")
                 {
-                    this.botHelper.addBotToEnemyList(difficultySettings, [this.botConfig.pmc.bearType, this.botConfig.pmc.usecType], lowercasedBotType);
+                    this.botHelper.addBotToEnemyList(difficultySettings, [
+                        this.pmcConfig.bearType,
+                        this.pmcConfig.usecType,
+                    ], lowercasedBotType);
                 }
-                
+
                 break;
         }
 
@@ -135,10 +152,10 @@ export class BotController
                 side: "Savage",
                 role: condition.Role,
                 playerLevel: pmcProfile.Info.Level,
-                botRelativeLevelDeltaMax: this.botConfig.pmc.botRelativeLevelDeltaMax,
-                botCountToGenerate: this.botConfig.botGenerationBatchSizePerType,
+                botRelativeLevelDeltaMax: this.pmcConfig.botRelativeLevelDeltaMax,
+                botCountToGenerate: this.botConfig.presetBatch[condition.Role],
                 botDifficulty: condition.Difficulty,
-                isPlayerScav: false
+                isPlayerScav: false,
             };
 
             // Custom map waves can have spt roles in them
@@ -151,12 +168,12 @@ export class BotController
 
             // Loop over and make x bots for this condition
             let cacheKey = "";
-            for (let i = 0; i < botGenerationDetails.botCountToGenerate; i ++)
+            for (let i = 0; i < botGenerationDetails.botCountToGenerate; i++)
             {
                 const details = this.jsonUtil.clone(botGenerationDetails);
 
-                // If ispmc not true, roll chance to be pmc if type is allowed to be one
-                const botConvertRateMinMax = this.botConfig.pmc.convertIntoPmcChance[details.role.toLowerCase()];
+                // Roll chance to be pmc if type is allowed to be one
+                const botConvertRateMinMax = this.pmcConfig.convertIntoPmcChance[details.role.toLowerCase()];
                 if (botConvertRateMinMax)
                 {
                     // Should bot become PMC
@@ -185,6 +202,7 @@ export class BotController
             if (info.conditions.length === 1)
             {
                 // Cache bot when we're returning 1 bot, this indicated the bot is being requested to be spawned
+                // Used by PMC response text system
                 this.matchBotDetailsCacheService.cacheBot(botToReturn);
             }
 
@@ -196,23 +214,23 @@ export class BotController
 
     /**
      * Get the difficulty passed in, if its not "asoline", get selected difficulty from config
-     * @param requestedDifficulty 
-     * @returns 
+     * @param requestedDifficulty
+     * @returns
      */
     public getPMCDifficulty(requestedDifficulty: string): string
     {
         // maybe retrun a random difficulty...
-        if (this.botConfig.pmc.difficulty.toLowerCase() === "asonline")
+        if (this.pmcConfig.difficulty.toLowerCase() === "asonline")
         {
             return requestedDifficulty;
         }
 
-        if (this.botConfig.pmc.difficulty.toLowerCase() === "random")
+        if (this.pmcConfig.difficulty.toLowerCase() === "random")
         {
             return this.botDifficultyHelper.chooseRandomDifficulty();
         }
 
-        return this.botConfig.pmc.difficulty;
+        return this.pmcConfig.difficulty;
     }
 
     /**
@@ -223,28 +241,36 @@ export class BotController
     public getBotCap(): number
     {
         const defaultMapCapId = "default";
-        const raidConfig = this.applicationContext.getLatestValue(ContextVariableType.RAID_CONFIGURATION).getValue<IGetRaidConfigurationRequestData>();
+        const raidConfig = this.applicationContext.getLatestValue(ContextVariableType.RAID_CONFIGURATION).getValue<
+            IGetRaidConfigurationRequestData
+        >();
         if (!raidConfig)
         {
             this.logger.warning(this.localisationService.getText("bot-missing_saved_match_info"));
         }
 
-        const mapName = (raidConfig)
-            ? raidConfig.location
-            : defaultMapCapId;
+        const mapName = raidConfig ? raidConfig.location : defaultMapCapId;
 
         let botCap = this.botConfig.maxBotCap[mapName.toLowerCase()];
         if (!botCap)
         {
-            this.logger.warning(this.localisationService.getText("bot-no_bot_cap_found_for_location", raidConfig.location.toLowerCase()));
+            this.logger.warning(
+                this.localisationService.getText(
+                    "bot-no_bot_cap_found_for_location",
+                    raidConfig.location.toLowerCase(),
+                ),
+            );
             botCap = this.botConfig.maxBotCap[defaultMapCapId];
         }
 
         return botCap;
     }
 
-    public getPmcBotTypes(): Record<string, Record<string, Record<string, number>>>
+    public getAiBotBrainTypes(): any
     {
-        return this.botConfig.pmc.pmcType;
+        return { 
+            pmc: this.pmcConfig.pmcType,
+            assault: this.botConfig.assaultBrainType,
+            playerScav: this.botConfig.playerScavBrainType};
     }
 }

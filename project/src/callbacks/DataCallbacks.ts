@@ -1,21 +1,21 @@
 import { inject, injectable } from "tsyringe";
 
-import { HideoutController } from "../controllers/HideoutController";
-import { RagfairController } from "../controllers/RagfairController";
-import { IEmptyRequestData } from "../models/eft/common/IEmptyRequestData";
-import { IGlobals } from "../models/eft/common/IGlobals";
-import { ICustomizationItem } from "../models/eft/common/tables/ICustomizationItem";
-import { IHandbookBase } from "../models/eft/common/tables/IHandbookBase";
-import { IGetItemPricesResponse } from "../models/eft/game/IGetItemPricesResponse";
-import { IHideoutArea } from "../models/eft/hideout/IHideoutArea";
-import { IHideoutProduction } from "../models/eft/hideout/IHideoutProduction";
-import { IHideoutScavCase } from "../models/eft/hideout/IHideoutScavCase";
-import { IHideoutSettingsBase } from "../models/eft/hideout/IHideoutSettingsBase";
-import { IGetBodyResponseData } from "../models/eft/httpResponse/IGetBodyResponseData";
-import { Money } from "../models/enums/Money";
-import { ISettingsBase } from "../models/spt/server/ISettingsBase";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
+import { HideoutController } from "@spt-aki/controllers/HideoutController";
+import { RagfairController } from "@spt-aki/controllers/RagfairController";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { IGlobals } from "@spt-aki/models/eft/common/IGlobals";
+import { ICustomizationItem } from "@spt-aki/models/eft/common/tables/ICustomizationItem";
+import { IHandbookBase } from "@spt-aki/models/eft/common/tables/IHandbookBase";
+import { IGetItemPricesResponse } from "@spt-aki/models/eft/game/IGetItemPricesResponse";
+import { IHideoutArea } from "@spt-aki/models/eft/hideout/IHideoutArea";
+import { IHideoutProduction } from "@spt-aki/models/eft/hideout/IHideoutProduction";
+import { IHideoutScavCase } from "@spt-aki/models/eft/hideout/IHideoutScavCase";
+import { IHideoutSettingsBase } from "@spt-aki/models/eft/hideout/IHideoutSettingsBase";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { Money } from "@spt-aki/models/enums/Money";
+import { ISettingsBase } from "@spt-aki/models/spt/server/ISettingsBase";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
 
 /**
  * Handle client requests
@@ -27,9 +27,9 @@ export class DataCallbacks
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("RagfairController") protected ragfairController: RagfairController,
-        @inject("HideoutController") protected hideoutController: HideoutController
+        @inject("HideoutController") protected hideoutController: HideoutController,
     )
-    { }
+    {}
 
     /**
      * Handle client/settings
@@ -67,7 +67,11 @@ export class DataCallbacks
      * @returns IHandbookBase
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getTemplateHandbook(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IHandbookBase>
+    public getTemplateHandbook(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IHandbookBase>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().templates.handbook);
     }
@@ -77,7 +81,11 @@ export class DataCallbacks
      * @returns Record<string, ICustomizationItem
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getTemplateSuits(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<Record<string, ICustomizationItem>>
+    public getTemplateSuits(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<Record<string, ICustomizationItem>>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().templates.customization);
     }
@@ -97,25 +105,41 @@ export class DataCallbacks
      * @returns IHideoutSettingsBase
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getHideoutSettings(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IHideoutSettingsBase>
+    public getHideoutSettings(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IHideoutSettingsBase>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().hideout.settings);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getHideoutAreas(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IHideoutArea[]>
+    public getHideoutAreas(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IHideoutArea[]>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().hideout.areas);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public gethideoutProduction(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IHideoutProduction[]>
+    public gethideoutProduction(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IHideoutProduction[]>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().hideout.production);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getHideoutScavcase(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IHideoutScavCase[]>
+    public getHideoutScavcase(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IHideoutScavCase[]>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().hideout.scavcase);
     }
@@ -124,7 +148,11 @@ export class DataCallbacks
      * Handle client/languages
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getLocalesLanguages(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<Record<string, string>>
+    public getLocalesLanguages(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<Record<string, string>>
     {
         return this.httpResponse.getBody(this.databaseServer.getTables().locales.languages);
     }
@@ -135,7 +163,9 @@ export class DataCallbacks
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public getLocalesMenu(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<string>
     {
-        return this.httpResponse.getBody(this.databaseServer.getTables().locales.menu[url.replace("/client/menu/locale/", "")]);
+        return this.httpResponse.getBody(
+            this.databaseServer.getTables().locales.menu[url.replace("/client/menu/locale/", "")],
+        );
     }
 
     /**
@@ -144,7 +174,9 @@ export class DataCallbacks
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public getLocalesGlobal(url: string, info: IEmptyRequestData, sessionID: string): string
     {
-        return this.httpResponse.getUnclearedBody(this.databaseServer.getTables().locales.global[url.replace("/client/locale/", "")]);
+        return this.httpResponse.getUnclearedBody(
+            this.databaseServer.getTables().locales.global[url.replace("/client/locale/", "")],
+        );
     }
 
     /**
@@ -162,7 +194,11 @@ export class DataCallbacks
      * TODO -  fully implement this
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getItemPrices(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<IGetItemPricesResponse>
+    public getItemPrices(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IGetItemPricesResponse>
     {
         const handbookPrices = this.ragfairController.getStaticPrices();
         const response: IGetItemPricesResponse = {
@@ -174,8 +210,8 @@ export class DataCallbacks
                 // eslint-disable-next-line @typescript-eslint/naming-convention
                 "569668774bdc2da2298b4568": handbookPrices[Money.EUROS],
                 // eslint-disable-next-line @typescript-eslint/naming-convention
-                "5696686a4bdc2da3298b456a": handbookPrices[Money.DOLLARS]
-            }
+                "5696686a4bdc2da3298b456a": handbookPrices[Money.DOLLARS],
+            },
         };
         return this.httpResponse.getBody(response);
     }

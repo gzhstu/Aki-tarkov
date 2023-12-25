@@ -1,47 +1,57 @@
 import { inject, injectable } from "tsyringe";
 
-import { LocationGenerator } from "../generators/LocationGenerator";
-import { LootGenerator } from "../generators/LootGenerator";
-import { WeightedRandomHelper } from "../helpers/WeightedRandomHelper";
-import { ILocation } from "../models/eft/common/ILocation";
-import { ILocationBase } from "../models/eft/common/ILocationBase";
-import {
-    ILocationsGenerateAllResponse
-} from "../models/eft/common/ILocationsSourceDestinationBase";
-import { ILooseLoot, SpawnpointTemplate } from "../models/eft/common/ILooseLoot";
-import { IAirdropLootResult } from "../models/eft/location/IAirdropLootResult";
-import { AirdropTypeEnum } from "../models/enums/AirdropType";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { IAirdropConfig } from "../models/spt/config/IAirdropConfig";
-import { ILocations } from "../models/spt/server/ILocations";
-import { LootRequest } from "../models/spt/services/LootRequest";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { LocalisationService } from "../services/LocalisationService";
-import { HashUtil } from "../utils/HashUtil";
-import { JsonUtil } from "../utils/JsonUtil";
-import { TimeUtil } from "../utils/TimeUtil";
+import { ApplicationContext } from "@spt-aki/context/ApplicationContext";
+import { ContextVariableType } from "@spt-aki/context/ContextVariableType";
+import { LocationGenerator } from "@spt-aki/generators/LocationGenerator";
+import { LootGenerator } from "@spt-aki/generators/LootGenerator";
+import { WeightedRandomHelper } from "@spt-aki/helpers/WeightedRandomHelper";
+import { ILocation } from "@spt-aki/models/eft/common/ILocation";
+import { ILocationBase } from "@spt-aki/models/eft/common/ILocationBase";
+import { ILocationsGenerateAllResponse } from "@spt-aki/models/eft/common/ILocationsSourceDestinationBase";
+import { ILooseLoot, SpawnpointTemplate } from "@spt-aki/models/eft/common/ILooseLoot";
+import { IAirdropLootResult } from "@spt-aki/models/eft/location/IAirdropLootResult";
+import { IGetLocationRequestData } from "@spt-aki/models/eft/location/IGetLocationRequestData";
+import { AirdropTypeEnum } from "@spt-aki/models/enums/AirdropType";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { IAirdropConfig } from "@spt-aki/models/spt/config/IAirdropConfig";
+import { ILocationConfig } from "@spt-aki/models/spt/config/ILocationConfig";
+import { IRaidChanges } from "@spt-aki/models/spt/location/IRaidChanges";
+import { ILocations } from "@spt-aki/models/spt/server/ILocations";
+import { LootRequest } from "@spt-aki/models/spt/services/LootRequest";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { RaidTimeAdjustmentService } from "@spt-aki/services/RaidTimeAdjustmentService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class LocationController
 {
     protected airdropConfig: IAirdropConfig;
+    protected locationConfig: ILocationConfig;
 
     constructor(
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("HashUtil") protected hashUtil: HashUtil,
+        @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("WeightedRandomHelper") protected weightedRandomHelper: WeightedRandomHelper,
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("LocationGenerator") protected locationGenerator: LocationGenerator,
         @inject("LocalisationService") protected localisationService: LocalisationService,
+        @inject("RaidTimeAdjustmentService") protected raidTimeAdjustmentService: RaidTimeAdjustmentService,
         @inject("LootGenerator") protected lootGenerator: LootGenerator,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("TimeUtil") protected timeUtil: TimeUtil,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
+        @inject("ApplicationContext") protected applicationContext: ApplicationContext,
     )
     {
         this.airdropConfig = this.configServer.getConfig(ConfigTypes.AIRDROP);
+        this.locationConfig = this.configServer.getConfig(ConfigTypes.LOCATION);
     }
 
     /*  */
@@ -49,23 +59,26 @@ export class LocationController
     /**
      * Handle client/location/getLocalloot
      * Get a location (map) with generated loot data
-     * @param location Map to generate loot for
+     * @param sessionId Player id
+     * @param request Map request to generate
      * @returns ILocationBase
      */
-    public get(location: string): ILocationBase
+    public get(sessionId: string, request: IGetLocationRequestData): ILocationBase
     {
-        const name = location.toLowerCase().replace(" ", "");
+        this.logger.debug(`Generating data for: ${request.locationId}, variant: ${request.variantId}`);
+        const name = request.locationId.toLowerCase().replace(" ", "");
         return this.generate(name);
     }
 
     /**
-     * Generate a maps base location without loot
+     * Generate a maps base location with loot
      * @param name Map name
      * @returns ILocationBase
      */
     protected generate(name: string): ILocationBase
     {
-        const location: ILocation = this.databaseServer.getTables().locations[name];
+        const db = this.databaseServer.getTables();
+        const location: ILocation = db.locations[name];
         const output: ILocationBase = this.jsonUtil.clone(location.base);
 
         output.UnixDateTime = this.timeUtil.getTimestamp();
@@ -76,62 +89,48 @@ export class LocationController
             return output;
         }
 
-        const locationName = location.base.Name;
-        const db = this.databaseServer.getTables();
-
-        // Copy loot data to local properties
-        const staticWeapons = this.jsonUtil.clone(db.loot.staticContainers[locationName]?.staticWeapons);
-        if (!staticWeapons)
+        // Check for a loot multipler adjustment in app context and apply if one is found
+        let locationConfigCopy: ILocationConfig;
+        const raidAdjustments = this.applicationContext.getLatestValue(ContextVariableType.RAID_ADJUSTMENTS)?.getValue<IRaidChanges>();
+        if (raidAdjustments)
         {
-            this.logger.error(`Unable to find static weapon data for map: ${locationName}`);
+            locationConfigCopy = this.jsonUtil.clone(this.locationConfig); // Clone values so they can be used to reset originals later
+            this.raidTimeAdjustmentService.makeAdjustmentsToMap(raidAdjustments, output);
         }
 
-        const staticContainers = this.jsonUtil.clone(db.loot.staticContainers[locationName]?.staticContainers);
-        if (!staticContainers)
-        {
-            this.logger.error(`Unable to find static container data for map: ${locationName}`);
-        }
-
-        const staticForced = this.jsonUtil.clone(db.loot.staticContainers[locationName]?.staticForced);
-        if (!staticForced)
-        {
-            this.logger.error(`Unable to find forced static data for map: ${locationName}`);
-        }
-
-        const staticLootDist = this.jsonUtil.clone(db.loot.staticLoot);
         const staticAmmoDist = this.jsonUtil.clone(db.loot.staticAmmo);
 
-        // Init loot array for map
-        output.Loot = [];
-
-        // Add mounted weapons to output loot
-        for (const mi of staticWeapons ?? [])
-        {
-            output.Loot.push(mi);
-        }
-
-        // Add static loot to output loot + pass in forced static loot as param
-        let staticContainerCount = 0;
-        for (const staticContainer of staticContainers ?? [])
-        {
-            const container = this.locationGenerator.generateContainerLoot(staticContainer, staticForced, staticLootDist, staticAmmoDist, name);
-            output.Loot.push(container);
-            staticContainerCount++;
-        }
-
-        this.logger.success(this.localisationService.getText("location-containers_generated_success", staticContainerCount));
+        // Create containers and add loot to them
+        const staticLoot = this.locationGenerator.generateStaticContainers(output, staticAmmoDist);
+        output.Loot.push(...staticLoot);
 
         // Add dyanmic loot to output loot
         const dynamicLootDist: ILooseLoot = this.jsonUtil.clone(location.looseLoot);
-        const dynamicLoot: SpawnpointTemplate[] = this.locationGenerator.generateDynamicLoot(dynamicLootDist, staticAmmoDist, name);
-        for (const dli of dynamicLoot)
+        const dynamicSpawnPoints: SpawnpointTemplate[] = this.locationGenerator.generateDynamicLoot(
+            dynamicLootDist,
+            staticAmmoDist,
+            name,
+        );
+        for (const spawnPoint of dynamicSpawnPoints)
         {
-            output.Loot.push(dli);
+            output.Loot.push(spawnPoint);
         }
 
         // Done generating, log results
-        this.logger.success(this.localisationService.getText("location-dynamic_items_spawned_success", dynamicLoot.length));
+        this.logger.success(
+            this.localisationService.getText("location-dynamic_items_spawned_success", dynamicSpawnPoints.length),
+        );
         this.logger.success(this.localisationService.getText("location-generated_success", name));
+
+        // Reset loot multipliers back to original values
+        if (raidAdjustments)
+        {
+            this.logger.debug("Resetting loot multipliers back to their original values");
+            this.locationConfig.staticLootMultiplier = locationConfigCopy.staticLootMultiplier;
+            this.locationConfig.looseLootMultiplier = locationConfigCopy.looseLootMultiplier;
+
+            this.applicationContext.clearValues(ContextVariableType.RAID_ADJUSTMENTS);
+        }
 
         return output;
     }
@@ -145,7 +144,7 @@ export class LocationController
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public generateAll(sessionId: string): ILocationsGenerateAllResponse
     {
-        const locationsFromDb = this.jsonUtil.clone(this.databaseServer.getTables().locations);
+        const locationsFromDb = this.databaseServer.getTables().locations;
         const locations: ILocations = {};
         for (const mapName in locationsFromDb)
         {
@@ -162,10 +161,7 @@ export class LocationController
             locations[mapBase._Id] = mapBase;
         }
 
-        return  {
-            locations: locations,
-            paths: locationsFromDb.base.paths
-        };
+        return { locations: locations, paths: locationsFromDb.base.paths };
     }
 
     /**
@@ -182,7 +178,7 @@ export class LocationController
 
         const airdropConfig = this.getAirdropLootConfigByType(airdropType);
 
-        return {dropType: airdropType, loot: this.lootGenerator.createRandomLoot(airdropConfig)};
+        return { dropType: airdropType, loot: this.lootGenerator.createRandomLoot(airdropConfig) };
     }
 
     /**
@@ -206,7 +202,9 @@ export class LocationController
         let lootSettingsByType = this.airdropConfig.loot[airdropType];
         if (!lootSettingsByType)
         {
-            this.logger.error(this.localisationService.getText("location-unable_to_find_airdrop_drop_config_of_type", airdropType));
+            this.logger.error(
+                this.localisationService.getText("location-unable_to_find_airdrop_drop_config_of_type", airdropType),
+            );
             lootSettingsByType = this.airdropConfig.loot[AirdropTypeEnum.MIXED];
         }
 
@@ -218,7 +216,8 @@ export class LocationController
             itemTypeWhitelist: lootSettingsByType.itemTypeWhitelist,
             itemLimits: lootSettingsByType.itemLimits,
             itemStackLimits: lootSettingsByType.itemStackLimits,
-            armorLevelWhitelist: lootSettingsByType.armorLevelWhitelist
+            armorLevelWhitelist: lootSettingsByType.armorLevelWhitelist,
+            allowBossItems: lootSettingsByType.allowBossItems,
         };
     }
 }

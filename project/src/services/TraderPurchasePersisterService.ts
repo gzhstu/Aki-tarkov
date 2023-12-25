@@ -1,13 +1,13 @@
 import { inject, injectable } from "tsyringe";
 
-import { ProfileHelper } from "../helpers/ProfileHelper";
-import { TraderPurchaseData } from "../models/eft/profile/IAkiProfile";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { ITraderConfig } from "../models/spt/config/ITraderConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { TimeUtil } from "../utils/TimeUtil";
-import { LocalisationService } from "./LocalisationService";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { TraderPurchaseData } from "@spt-aki/models/eft/profile/IAkiProfile";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { ITraderConfig } from "@spt-aki/models/spt/config/ITraderConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 /**
  * Help with storing limited item purchases from traders in profile to persist them over server restarts
@@ -22,7 +22,7 @@ export class TraderPurchasePersisterService
         @inject("TimeUtil") protected timeUtil: TimeUtil,
         @inject("ProfileHelper") protected profileHelper: ProfileHelper,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.traderConfig = this.configServer.getConfig(ConfigTypes.TRADER);
@@ -95,20 +95,27 @@ export class TraderPurchasePersisterService
 
             for (const purchaseKey in profile.traderPurchases[traderId])
             {
-                const traderUpdateDetails = this.traderConfig.updateTime.find(x => x.traderId === traderId);
+                const traderUpdateDetails = this.traderConfig.updateTime.find((x) => x.traderId === traderId);
                 if (!traderUpdateDetails)
                 {
-                    this.logger.error(this.localisationService.getText("trader-unable_to_delete_stale_purchases", {profileId: profile.info.id, traderId: traderId}));
+                    this.logger.error(
+                        this.localisationService.getText("trader-unable_to_delete_stale_purchases", {
+                            profileId: profile.info.id,
+                            traderId: traderId,
+                        }),
+                    );
 
                     continue;
                 }
 
                 const purchaseDetails = profile.traderPurchases[traderId][purchaseKey];
                 const resetTimeForItem = purchaseDetails.purchaseTimestamp + traderUpdateDetails.seconds;
-                if ((resetTimeForItem)  < this.timeUtil.getTimestamp())
+                if (resetTimeForItem < this.timeUtil.getTimestamp())
                 {
                     // Item was purchased far enough in past a trader refresh would have occured, remove purchase record from profile
-                    this.logger.debug(`Removed trader: ${traderId} purchase: ${purchaseKey} from profile: ${profile.info.id}`);
+                    this.logger.debug(
+                        `Removed trader: ${traderId} purchase: ${purchaseKey} from profile: ${profile.info.id}`,
+                    );
                     delete profile.traderPurchases[traderId][purchaseKey];
                 }
             }

@@ -1,7 +1,7 @@
-import { IEmptyRequestData } from "../../eft/common/IEmptyRequestData";
-import { IGetBodyResponseData } from "../../eft/httpResponse/IGetBodyResponseData";
-import { INotifierChannel } from "../../eft/notifier/INotifier";
-import { ISelectProfileRequestData } from "../../eft/notifier/ISelectProfileRequestData";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { INotifierChannel } from "@spt-aki/models/eft/notifier/INotifier";
+import { ISelectProfileRequestData } from "@spt-aki/models/eft/notifier/ISelectProfileRequestData";
 
 export interface INotifierCallbacks
 {
@@ -13,7 +13,11 @@ export interface INotifierCallbacks
      */
     sendNotification(sessionID: string, req: any, resp: any, data: any): void;
     getNotifier(url: string, info: any, sessionID: string): IGetBodyResponseData<any[]>;
-    createNotifierChannel(url: string, info: IEmptyRequestData, sessionID: string): IGetBodyResponseData<INotifierChannel>;
+    createNotifierChannel(
+        url: string,
+        info: IEmptyRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<INotifierChannel>;
     selectProfile(url: string, info: ISelectProfileRequestData, sessionID: string): IGetBodyResponseData<any>;
     notify(url: string, info: any, sessionID: string): string;
 }

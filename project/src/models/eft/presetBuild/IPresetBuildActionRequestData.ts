@@ -1,19 +1,10 @@
-import { Upd } from "../common/tables/IItem";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
 
-export interface IPresetBuildActionRequestData 
+export interface IPresetBuildActionRequestData
 {
-    Action: string
-    id: string
-    name: string
-    root: string
-    items: Item[]
-}
-
-export interface Item 
-{
-    _id: string
-    _tpl: string
-    upd?: Upd
-    parentId?: string
-    slotId?: string
+    Action: string;
+    id: string;
+    name: string;
+    root: string;
+    items: Item[];
 }

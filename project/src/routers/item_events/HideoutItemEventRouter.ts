@@ -1,22 +1,20 @@
 import { inject, injectable } from "tsyringe";
 
-import { HideoutCallbacks } from "../../callbacks/HideoutCallbacks";
-import { HandledRoute, ItemEventRouterDefinition } from "../../di/Router";
-import { IPmcData } from "../../models/eft/common/IPmcData";
-import { IItemEventRouterResponse } from "../../models/eft/itemEvent/IItemEventRouterResponse";
-import { HideoutEventActions } from "../../models/enums/HideoutEventActions";
+import { HideoutCallbacks } from "@spt-aki/callbacks/HideoutCallbacks";
+import { HandledRoute, ItemEventRouterDefinition } from "@spt-aki/di/Router";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { HideoutEventActions } from "@spt-aki/models/enums/HideoutEventActions";
 
 @injectable()
-export class HideoutItemEventRouter extends ItemEventRouterDefinition 
+export class HideoutItemEventRouter extends ItemEventRouterDefinition
 {
-    constructor(
-        @inject("HideoutCallbacks") protected hideoutCallbacks: HideoutCallbacks
-    ) 
+    constructor(@inject("HideoutCallbacks") protected hideoutCallbacks: HideoutCallbacks)
     {
         super();
     }
 
-    public override getHandledRoutes(): HandledRoute[] 
+    public override getHandledRoutes(): HandledRoute[]
     {
         return [
             new HandledRoute(HideoutEventActions.HIDEOUT_UPGRADE, false),
@@ -29,11 +27,17 @@ export class HideoutItemEventRouter extends ItemEventRouterDefinition
             new HandledRoute(HideoutEventActions.HIDEOUT_CONTINUOUS_PRODUCTION_START, false),
             new HandledRoute(HideoutEventActions.HIDEOUT_TAKE_PRODUCTION, false),
             new HandledRoute(HideoutEventActions.HIDEOUT_RECORD_SHOOTING_RANGE_POINTS, false),
-            new HandledRoute(HideoutEventActions.HIDEOUT_IMPROVE_AREA, false)
+            new HandledRoute(HideoutEventActions.HIDEOUT_IMPROVE_AREA, false),
+            new HandledRoute(HideoutEventActions.HIDEOUT_CANCEL_PRODUCTION_COMMAND, false),
         ];
     }
 
-    public override handleItemEvent(url: string, pmcData: IPmcData, body: any, sessionID: string): IItemEventRouterResponse 
+    public override handleItemEvent(
+        url: string,
+        pmcData: IPmcData,
+        body: any,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         switch (url)
         {
@@ -59,6 +63,8 @@ export class HideoutItemEventRouter extends ItemEventRouterDefinition
                 return this.hideoutCallbacks.recordShootingRangePoints(pmcData, body, sessionID);
             case HideoutEventActions.HIDEOUT_IMPROVE_AREA:
                 return this.hideoutCallbacks.improveArea(pmcData, body, sessionID);
+            case HideoutEventActions.HIDEOUT_CANCEL_PRODUCTION_COMMAND:
+                return this.hideoutCallbacks.cancelProduction(pmcData, body, sessionID);
         }
     }
 }

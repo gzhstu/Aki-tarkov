@@ -1,16 +1,16 @@
 import { inject, injectable } from "tsyringe";
 
-import { CustomizationController } from "../controllers/CustomizationController";
-import { IEmptyRequestData } from "../models/eft/common/IEmptyRequestData";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { ISuit } from "../models/eft/common/tables/ITrader";
-import { IBuyClothingRequestData } from "../models/eft/customization/IBuyClothingRequestData";
-import { IGetSuitsResponse } from "../models/eft/customization/IGetSuitsResponse";
-import { IWearClothingRequestData } from "../models/eft/customization/IWearClothingRequestData";
-import { IGetBodyResponseData } from "../models/eft/httpResponse/IGetBodyResponseData";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { SaveServer } from "../servers/SaveServer";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
+import { CustomizationController } from "@spt-aki/controllers/CustomizationController";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { ISuit } from "@spt-aki/models/eft/common/tables/ITrader";
+import { IBuyClothingRequestData } from "@spt-aki/models/eft/customization/IBuyClothingRequestData";
+import { IGetSuitsResponse } from "@spt-aki/models/eft/customization/IGetSuitsResponse";
+import { IWearClothingRequestData } from "@spt-aki/models/eft/customization/IWearClothingRequestData";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
 
 @injectable()
 export class CustomizationCallbacks
@@ -18,9 +18,9 @@ export class CustomizationCallbacks
     constructor(
         @inject("CustomizationController") protected customizationController: CustomizationController,
         @inject("SaveServer") protected saveServer: SaveServer,
-        @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil
+        @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
     )
-    { }
+    {}
 
     /**
      * Handle client/trading/customization/storage
@@ -30,7 +30,7 @@ export class CustomizationCallbacks
     {
         const result: IGetSuitsResponse = {
             _id: `pmc${sessionID}`,
-            suites: this.saveServer.getProfile(sessionID).suits
+            suites: this.saveServer.getProfile(sessionID).suits,
         };
         return this.httpResponse.getBody(result);
     }

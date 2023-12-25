@@ -1,28 +1,29 @@
 import { inject, injectable } from "tsyringe";
 
-import { Item } from "../models/eft/common/tables/IItem";
-import { ITemplateItem } from "../models/eft/common/tables/ITemplateItem";
-import { BaseClasses } from "../models/enums/BaseClasses";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { MemberCategory } from "../models/enums/MemberCategory";
-import { MessageType } from "../models/enums/MessageType";
-import { Traders } from "../models/enums/Traders";
-import { IQuestConfig } from "../models/spt/config/IQuestConfig";
-import { IRagfairConfig } from "../models/spt/config/IRagfairConfig";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { SaveServer } from "../servers/SaveServer";
-import { ItemFilterService } from "../services/ItemFilterService";
-import { LocaleService } from "../services/LocaleService";
-import { MailSendService } from "../services/MailSendService";
-import { HashUtil } from "../utils/HashUtil";
-import { JsonUtil } from "../utils/JsonUtil";
-import { RandomUtil } from "../utils/RandomUtil";
-import { TimeUtil } from "../utils/TimeUtil";
-import { DialogueHelper } from "./DialogueHelper";
-import { ItemHelper } from "./ItemHelper";
-import { ProfileHelper } from "./ProfileHelper";
-import { TraderHelper } from "./TraderHelper";
+import { DialogueHelper } from "@spt-aki/helpers/DialogueHelper";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { TraderHelper } from "@spt-aki/helpers/TraderHelper";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { ITemplateItem } from "@spt-aki/models/eft/common/tables/ITemplateItem";
+import { BaseClasses } from "@spt-aki/models/enums/BaseClasses";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { MemberCategory } from "@spt-aki/models/enums/MemberCategory";
+import { MessageType } from "@spt-aki/models/enums/MessageType";
+import { Traders } from "@spt-aki/models/enums/Traders";
+import { IQuestConfig } from "@spt-aki/models/spt/config/IQuestConfig";
+import { IRagfairConfig } from "@spt-aki/models/spt/config/IRagfairConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { ItemFilterService } from "@spt-aki/services/ItemFilterService";
+import { LocaleService } from "@spt-aki/services/LocaleService";
+import { MailSendService } from "@spt-aki/services/MailSendService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 /**
  * Helper class for common ragfair server actions
@@ -35,6 +36,7 @@ export class RagfairServerHelper
     protected static goodsReturnedTemplate = "5bdabfe486f7743e1665df6e 0"; // Your item was not sold
 
     constructor(
+        @inject("WinstonLogger") protected logger: ILogger,
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("HashUtil") protected hashUtil: HashUtil,
         @inject("TimeUtil") protected timeUtil: TimeUtil,
@@ -48,7 +50,7 @@ export class RagfairServerHelper
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("MailSendService") protected mailSendService: MailSendService,
         @inject("ItemFilterService") protected itemFilterService: ItemFilterService,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.ragfairConfig = this.configServer.getConfig(ConfigTypes.RAGFAIR);
@@ -57,7 +59,7 @@ export class RagfairServerHelper
 
     /**
      * Is item valid / on blacklist / quest item
-     * @param itemDetails 
+     * @param itemDetails
      * @returns boolean
      */
     public isItemValidRagfairItem(itemDetails: [boolean, ITemplateItem]): boolean
@@ -95,7 +97,10 @@ export class RagfairServerHelper
         }
 
         // Don't include damaged ammo packs
-        if (this.ragfairConfig.dynamic.blacklist.damagedAmmoPacks && itemDetails[1]._parent === BaseClasses.AMMO_BOX && itemDetails[1]._name.includes("_damaged"))
+        if (
+            this.ragfairConfig.dynamic.blacklist.damagedAmmoPacks && itemDetails[1]._parent === BaseClasses.AMMO_BOX
+            && itemDetails[1]._name.includes("_damaged")
+        )
         {
             return false;
         }
@@ -120,7 +125,7 @@ export class RagfairServerHelper
 
     /**
      * is supplied id a trader
-     * @param traderId 
+     * @param traderId
      * @returns True if id was a trader
      */
     public isTrader(traderId: string): boolean
@@ -155,7 +160,7 @@ export class RagfairServerHelper
             MessageType.MESSAGE_WITH_ITEMS,
             RagfairServerHelper.goodsReturnedTemplate,
             returnedItems,
-            this.timeUtil.getHoursAsSeconds(this.questConfig.redeemTime)
+            this.timeUtil.getHoursAsSeconds(this.databaseServer.getTables().globals.config.RagFair.yourOfferDidNotSellMaxStorageTimeInHour),
         );
     }
 
@@ -171,7 +176,10 @@ export class RagfairServerHelper
         }
 
         // Item Types to return one of
-        if (isWeaponPreset || this.itemHelper.isOfBaseclasses(itemDetails[1]._id, this.ragfairConfig.dynamic.showAsSingleStack))
+        if (
+            isWeaponPreset
+            || this.itemHelper.isOfBaseclasses(itemDetails[1]._id, this.ragfairConfig.dynamic.showAsSingleStack)
+        )
         {
             return 1;
         }
@@ -185,7 +193,9 @@ export class RagfairServerHelper
             return Math.round(this.randomUtil.getInt(config.nonStackableCount.min, config.nonStackableCount.max));
         }
 
-        const stackPercent = Math.round(this.randomUtil.getInt(config.stackablePercent.min, config.stackablePercent.max));
+        const stackPercent = Math.round(
+            this.randomUtil.getInt(config.stackablePercent.min, config.stackablePercent.max),
+        );
 
         return Math.round((maxStackCount / 100) * stackPercent);
     }
@@ -228,6 +238,11 @@ export class RagfairServerHelper
         return MemberCategory.DEFAULT;
     }
 
+    /**
+     * Get a player or traders nickname from their profile by their user id
+     * @param userID Sessionid/userid
+     * @returns Nickname of individual
+     */
     public getNickname(userID: string): string
     {
         if (this.isPlayer(userID))
@@ -249,21 +264,32 @@ export class RagfairServerHelper
         return (name.length > 15) ? this.getNickname(userID) : name;
     }
 
-    public getPresetItems(item: any): Item[]
+    /**
+     * Given a preset id from globals.json, return an array of items[] with unique ids
+     * @param item Preset item
+     * @returns Array of weapon and its children
+     */
+    public getPresetItems(item: Item): Item[]
     {
         const preset = this.jsonUtil.clone(this.databaseServer.getTables().globals.ItemPresets[item._id]._items);
         return this.reparentPresets(item, preset);
     }
 
+    /**
+     * Possible bug, returns all items associated with an items tpl, could be multiple presets from globals.json
+     * @param item Preset item
+     * @returns 
+     */
     public getPresetItemsByTpl(item: Item): Item[]
     {
         const presets = [];
-
         for (const itemId in this.databaseServer.getTables().globals.ItemPresets)
         {
             if (this.databaseServer.getTables().globals.ItemPresets[itemId]._items[0]._tpl === item._tpl)
             {
-                const presetItems = this.jsonUtil.clone(this.databaseServer.getTables().globals.ItemPresets[itemId]._items);
+                const presetItems = this.jsonUtil.clone(
+                    this.databaseServer.getTables().globals.ItemPresets[itemId]._items,
+                );
                 presets.push(this.reparentPresets(item, presetItems));
             }
         }
@@ -272,17 +298,17 @@ export class RagfairServerHelper
     }
 
     /**
-     * Generate new unique ids for the children while preserving hierarchy
-     * @param item base item
-     * @param preset 
+     * Generate new unique ids for child items while preserving hierarchy
+     * @param rootItem Base/primary item of preset
+     * @param preset Primary item + children of primary item
      * @returns Item array with new IDs
      */
-    public reparentPresets(item: Item, preset: Item[]): Item[]
+    public reparentPresets(rootItem: Item, preset: Item[]): Item[]
     {
         const oldRootId = preset[0]._id;
         const idMappings = {};
 
-        idMappings[oldRootId] = item._id;
+        idMappings[oldRootId] = rootItem._id;
 
         for (const mod of preset)
         {
@@ -296,16 +322,21 @@ export class RagfairServerHelper
                 idMappings[mod.parentId] = this.hashUtil.generate();
             }
 
-            mod._id =  idMappings[mod._id];
+            mod._id = idMappings[mod._id];
 
             if (mod.parentId !== undefined)
             {
-                mod.parentId =  idMappings[mod.parentId];
+                mod.parentId = idMappings[mod.parentId];
             }
         }
 
-        // force item's details into first location of presetItems
-        preset[0] = item;
+        // Force item's details into first location of presetItems
+        if (preset[0]._tpl !== rootItem._tpl)
+        {
+            this.logger.warning(`Reassigning root item from ${preset[0]._tpl} to ${rootItem._tpl}`);
+        }
+
+        preset[0] = rootItem;
 
         return preset;
     }

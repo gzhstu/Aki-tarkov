@@ -1,15 +1,15 @@
 import { inject, injectable } from "tsyringe";
 
-import { Item } from "../models/eft/common/tables/IItem";
-import { ITemplateItem, Props } from "../models/eft/common/tables/ITemplateItem";
-import { BaseClasses } from "../models/enums/BaseClasses";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { IRepairConfig } from "../models/spt/config/IRepairConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { JsonUtil } from "../utils/JsonUtil";
-import { RandomUtil } from "../utils/RandomUtil";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { ITemplateItem, Props } from "@spt-aki/models/eft/common/tables/ITemplateItem";
+import { BaseClasses } from "@spt-aki/models/enums/BaseClasses";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { IRepairConfig } from "@spt-aki/models/spt/config/IRepairConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
 
 @injectable()
 export class RepairHelper
@@ -21,7 +21,7 @@ export class RepairHelper
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.repairConfig = this.configServer.getConfig(ConfigTypes.REPAIR);
@@ -34,6 +34,7 @@ export class RepairHelper
      * @param isArmor Is item being repaired a piece of armor
      * @param amountToRepair how many unit of durability to repair
      * @param useRepairKit Is item being repaired with a repair kit
+     * @param traderQualityMultipler Trader quality value from traders base json
      * @param applyMaxDurabilityDegradation should item have max durability reduced
      */
     public updateItemDurability(
@@ -43,10 +44,11 @@ export class RepairHelper
         amountToRepair: number,
         useRepairKit: boolean,
         traderQualityMultipler: number,
-        applyMaxDurabilityDegradation = true
+        applyMaxDurabilityDegradation = true,
     ): void
     {
         this.logger.debug(`Adding ${amountToRepair} to ${itemToRepairDetails._name} using kit: ${useRepairKit}`);
+
         const itemMaxDurability = this.jsonUtil.clone(itemToRepair.upd.Repairable.MaxDurability);
         const itemCurrentDurability = this.jsonUtil.clone(itemToRepair.upd.Repairable.Durability);
         const itemCurrentMaxDurability = this.jsonUtil.clone(itemToRepair.upd.Repairable.MaxDurability);
@@ -67,22 +69,29 @@ export class RepairHelper
         }
 
         // Construct object to return
-        itemToRepair.upd.Repairable = {
-            Durability: newCurrentDurability,
-            MaxDurability: newCurrentMaxDurability
-        };
+        itemToRepair.upd.Repairable = { Durability: newCurrentDurability, MaxDurability: newCurrentMaxDurability };
 
         // when modders set the repair coefficient to 0 it means that they dont want to lose durability on items
         // the code below generates a random degradation on the weapon durability
         if (applyMaxDurabilityDegradation)
         {
-            const randomisedWearAmount = (isArmor)
-                ? this.getRandomisedArmorRepairDegradationValue(itemToRepairDetails._props.ArmorMaterial, useRepairKit, itemCurrentMaxDurability, traderQualityMultipler)
-                : this.getRandomisedWeaponRepairDegradationValue(itemToRepairDetails._props, useRepairKit, itemCurrentMaxDurability, traderQualityMultipler);            
-            
+            const randomisedWearAmount = isArmor
+                ? this.getRandomisedArmorRepairDegradationValue(
+                    itemToRepairDetails._props.ArmorMaterial,
+                    useRepairKit,
+                    itemCurrentMaxDurability,
+                    traderQualityMultipler,
+                )
+                : this.getRandomisedWeaponRepairDegradationValue(
+                    itemToRepairDetails._props,
+                    useRepairKit,
+                    itemCurrentMaxDurability,
+                    traderQualityMultipler,
+                );
+
             // Apply wear to durability
             itemToRepair.upd.Repairable.MaxDurability -= randomisedWearAmount;
-                
+
             // After adjusting max durability with degradation, ensure current dura isnt above max
             if (itemToRepair.upd.Repairable.Durability > itemToRepair.upd.Repairable.MaxDurability)
             {
@@ -97,8 +106,22 @@ export class RepairHelper
         }
     }
 
-    protected getRandomisedArmorRepairDegradationValue(armorMaterial: string, isRepairKit: boolean, armorMax: number, traderQualityMultipler: number): number
+    /**
+     * Repairing armor reduces the total durability value slightly, get a randomised (to 2dp) amount based on armor material
+     * @param armorMaterial What material is the armor being repaired made of
+     * @param isRepairKit Was a repair kit used
+     * @param armorMax Max amount of durability item can have
+     * @param traderQualityMultipler Different traders produce different loss values
+     * @returns Amount to reduce max durability by
+     */
+    protected getRandomisedArmorRepairDegradationValue(
+        armorMaterial: string,
+        isRepairKit: boolean,
+        armorMax: number,
+        traderQualityMultipler: number,
+    ): number
     {
+        // Degradation value is based on the armor material
         const armorMaterialSettings = this.databaseServer.getTables().globals.config.ArmorMaterials[armorMaterial];
 
         const minMultiplier = isRepairKit
@@ -110,19 +133,28 @@ export class RepairHelper
             : armorMaterialSettings.MaxRepairDegradation;
 
         const duraLossPercent = this.randomUtil.getFloat(minMultiplier, maxMultiplier);
-        const duraLossMultipliedByTraderMultiplier = (duraLossPercent * armorMax) * traderQualityMultipler; 
+        const duraLossMultipliedByTraderMultiplier = (duraLossPercent * armorMax) * traderQualityMultipler;
 
         return Number(duraLossMultipliedByTraderMultiplier.toFixed(2));
     }
 
-    protected getRandomisedWeaponRepairDegradationValue(itemProps: Props, isRepairKit: boolean, weaponMax: number, traderQualityMultipler: number): number
+    /**
+     * Repairing weapons reduces the total durability value slightly, get a randomised (to 2dp) amount
+     * @param itemProps Weapon properties
+     * @param isRepairKit Was a repair kit used
+     * @param weaponMax ax amount of durability item can have
+     * @param traderQualityMultipler Different traders produce different loss values
+     * @returns Amount to reduce max durability by
+     */
+    protected getRandomisedWeaponRepairDegradationValue(
+        itemProps: Props,
+        isRepairKit: boolean,
+        weaponMax: number,
+        traderQualityMultipler: number,
+    ): number
     {
-        const minRepairDeg = (isRepairKit)
-            ? itemProps.MinRepairKitDegradation
-            : itemProps.MinRepairDegradation;
-        let maxRepairDeg = (isRepairKit)
-            ? itemProps.MaxRepairKitDegradation
-            : itemProps.MaxRepairDegradation;
+        const minRepairDeg = isRepairKit ? itemProps.MinRepairKitDegradation : itemProps.MinRepairDegradation;
+        let maxRepairDeg = isRepairKit ? itemProps.MaxRepairKitDegradation : itemProps.MaxRepairDegradation;
 
         // WORKAROUND: Some items are always 0 when repairkit is true
         if (maxRepairDeg === 0)
@@ -131,24 +163,8 @@ export class RepairHelper
         }
 
         const duraLossPercent = this.randomUtil.getFloat(minRepairDeg, maxRepairDeg);
-        const duraLossMultipliedByTraderMultiplier = (duraLossPercent * weaponMax) * traderQualityMultipler; 
+        const duraLossMultipliedByTraderMultiplier = (duraLossPercent * weaponMax) * traderQualityMultipler;
 
         return Number(duraLossMultipliedByTraderMultiplier.toFixed(2));
     }
-
-    /**
-     * Is the supplied tpl a weapon
-     * @param tpl tplId to check is a weapon
-     * @returns true if tpl is a weapon
-     */
-    public isWeaponTemplate(tpl: string): boolean
-    {
-        const itemTemplates = this.databaseServer.getTables().templates.items;
-        const baseItem = itemTemplates[tpl];
-        const baseNode = itemTemplates[baseItem._parent];
-        const parentNode = itemTemplates[baseNode._parent];
-
-        return parentNode._id === BaseClasses.WEAPON;
-    }
-
 }

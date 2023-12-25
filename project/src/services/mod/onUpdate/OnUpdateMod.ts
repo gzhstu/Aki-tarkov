@@ -1,11 +1,11 @@
-import { OnUpdate } from "../../../di/OnUpdate";
+import { OnUpdate } from "@spt-aki/di/OnUpdate";
 
 export class OnUpdateMod implements OnUpdate
 {
     public constructor(
-        private onUpdateOverride: ( timeSinceLastRun: number ) => boolean,
-        private getRouteOverride: () => string
-    ) 
+        private onUpdateOverride: (timeSinceLastRun: number) => boolean,
+        private getRouteOverride: () => string,
+    )
     {
     }
 
@@ -14,7 +14,7 @@ export class OnUpdateMod implements OnUpdate
         return this.onUpdateOverride(timeSinceLastRun);
     }
 
-    public getRoute(): string 
+    public getRoute(): string
     {
         return this.getRouteOverride();
     }

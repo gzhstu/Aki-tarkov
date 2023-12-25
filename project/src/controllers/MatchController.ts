@@ -1,42 +1,53 @@
 import { inject, injectable } from "tsyringe";
 
-import { ApplicationContext } from "../context/ApplicationContext";
-import { ContextVariableType } from "../context/ContextVariableType";
-import { ProfileHelper } from "../helpers/ProfileHelper";
-import { TraderHelper } from "../helpers/TraderHelper";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { ICreateGroupRequestData } from "../models/eft/match/ICreateGroupRequestData";
-import { IEndOfflineRaidRequestData } from "../models/eft/match/IEndOfflineRaidRequestData";
-import { IGetGroupStatusRequestData } from "../models/eft/match/IGetGroupStatusRequestData";
-import { IGetProfileRequestData } from "../models/eft/match/IGetProfileRequestData";
-import {
-    IGetRaidConfigurationRequestData
-} from "../models/eft/match/IGetRaidConfigurationRequestData";
-import { IJoinMatchRequestData } from "../models/eft/match/IJoinMatchRequestData";
-import { IJoinMatchResult } from "../models/eft/match/IJoinMatchResult";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { Traders } from "../models/enums/Traders";
-import { IBotConfig } from "../models/spt/config/IBotConfig";
-import { IInRaidConfig } from "../models/spt/config/IInRaidConfig";
-import { IMatchConfig } from "../models/spt/config/IMatchConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { SaveServer } from "../servers/SaveServer";
-import { BotGenerationCacheService } from "../services/BotGenerationCacheService";
-import { BotLootCacheService } from "../services/BotLootCacheService";
-import { MatchLocationService } from "../services/MatchLocationService";
-import { ProfileSnapshotService } from "../services/ProfileSnapshotService";
+import { ApplicationContext } from "@spt-aki/context/ApplicationContext";
+import { ContextVariableType } from "@spt-aki/context/ContextVariableType";
+import { LootGenerator } from "@spt-aki/generators/LootGenerator";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { TraderHelper } from "@spt-aki/helpers/TraderHelper";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { ICreateGroupRequestData } from "@spt-aki/models/eft/match/ICreateGroupRequestData";
+import { IEndOfflineRaidRequestData } from "@spt-aki/models/eft/match/IEndOfflineRaidRequestData";
+import { IGetGroupStatusRequestData } from "@spt-aki/models/eft/match/IGetGroupStatusRequestData";
+import { IGetGroupStatusResponse } from "@spt-aki/models/eft/match/IGetGroupStatusResponse";
+import { IGetProfileRequestData } from "@spt-aki/models/eft/match/IGetProfileRequestData";
+import { IGetRaidConfigurationRequestData } from "@spt-aki/models/eft/match/IGetRaidConfigurationRequestData";
+import { IJoinMatchRequestData } from "@spt-aki/models/eft/match/IJoinMatchRequestData";
+import { IJoinMatchResult } from "@spt-aki/models/eft/match/IJoinMatchResult";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { MessageType } from "@spt-aki/models/enums/MessageType";
+import { Traders } from "@spt-aki/models/enums/Traders";
+import { IInRaidConfig } from "@spt-aki/models/spt/config/IInRaidConfig";
+import { IMatchConfig } from "@spt-aki/models/spt/config/IMatchConfig";
+import { IPmcConfig } from "@spt-aki/models/spt/config/IPmcConfig";
+import { ITraderConfig } from "@spt-aki/models/spt/config/ITraderConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { BotGenerationCacheService } from "@spt-aki/services/BotGenerationCacheService";
+import { BotLootCacheService } from "@spt-aki/services/BotLootCacheService";
+import { MailSendService } from "@spt-aki/services/MailSendService";
+import { MatchLocationService } from "@spt-aki/services/MatchLocationService";
+import { ProfileSnapshotService } from "@spt-aki/services/ProfileSnapshotService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class MatchController
 {
     protected matchConfig: IMatchConfig;
     protected inraidConfig: IInRaidConfig;
-    protected botConfig: IBotConfig;
+    protected traderConfig: ITraderConfig;
+    protected pmcConfig: IPmcConfig;
 
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("SaveServer") protected saveServer: SaveServer,
+        @inject("TimeUtil") protected timeUtil: TimeUtil,
+        @inject("RandomUtil") protected randomUtil: RandomUtil,
+        @inject("HashUtil") protected hashUtil: HashUtil,
         @inject("ProfileHelper") protected profileHelper: ProfileHelper,
         @inject("MatchLocationService") protected matchLocationService: MatchLocationService,
         @inject("TraderHelper") protected traderHelper: TraderHelper,
@@ -44,12 +55,15 @@ export class MatchController
         @inject("ConfigServer") protected configServer: ConfigServer,
         @inject("ProfileSnapshotService") protected profileSnapshotService: ProfileSnapshotService,
         @inject("BotGenerationCacheService") protected botGenerationCacheService: BotGenerationCacheService,
-        @inject("ApplicationContext") protected applicationContext: ApplicationContext
+        @inject("MailSendService") protected mailSendService: MailSendService,
+        @inject("LootGenerator") protected lootGenerator: LootGenerator,
+        @inject("ApplicationContext") protected applicationContext: ApplicationContext,
     )
     {
         this.matchConfig = this.configServer.getConfig(ConfigTypes.MATCH);
         this.inraidConfig = this.configServer.getConfig(ConfigTypes.IN_RAID);
-        this.botConfig = this.configServer.getConfig(ConfigTypes.BOT);
+        this.traderConfig = this.configServer.getConfig(ConfigTypes.TRADER);
+        this.pmcConfig = this.configServer.getConfig(ConfigTypes.PMC);
     }
 
     public getEnabled(): boolean
@@ -89,26 +103,23 @@ export class MatchController
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     public joinMatch(info: IJoinMatchRequestData, sessionId: string): IJoinMatchResult
     {
-        const output: IJoinMatchResult = {
-            maxPveCountExceeded: false,
-            profiles: []
-        };
+        const output: IJoinMatchResult = { maxPveCountExceeded: false, profiles: [] };
 
         // get list of players joining into the match
         output.profiles.push({
-            "profileid": "TODO",
+            profileid: "TODO",
             profileToken: "TODO",
-            "status": "MatchWait",
-            "sid": "",
-            "ip": "",
-            "port": 0,
-            "version": "live",
-            "location": "TODO get location",
+            status: "MatchWait",
+            sid: "",
+            ip: "",
+            port: 0,
+            version: "live",
+            location: "TODO get location",
             raidMode: "Online",
-            "mode": "deathmatch",
-            "shortid": null,
+            mode: "deathmatch",
+            shortid: null,
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            additional_info: null
+            additional_info: null,
         });
 
         return output;
@@ -116,12 +127,9 @@ export class MatchController
 
     /** Handle client/match/group/status */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getGroupStatus(info: IGetGroupStatusRequestData): any
+    public getGroupStatus(info: IGetGroupStatusRequestData): IGetGroupStatusResponse
     {
-        return {
-            players: [],
-            maxPveCountExceeded: false
-        };
+        return { players: [], maxPveCountExceeded: false };
     }
 
     /**
@@ -134,15 +142,17 @@ export class MatchController
         // Store request data for access during bot generation
         this.applicationContext.addValue(ContextVariableType.RAID_CONFIGURATION, request);
 
-        //TODO: add code to strip PMC of equipment now they've started the raid
+        // TODO: add code to strip PMC of equipment now they've started the raid
 
         // Set pmcs to difficulty set in pre-raid screen if override in bot config isnt enabled
-        if (!this.botConfig.pmc.useDifficultyOverride)
+        if (!this.pmcConfig.useDifficultyOverride)
         {
-            this.botConfig.pmc.difficulty = this.convertDifficultyDropdownIntoBotDifficulty(request.wavesSettings.botDifficulty);
+            this.pmcConfig.difficulty = this.convertDifficultyDropdownIntoBotDifficulty(
+                request.wavesSettings.botDifficulty,
+            );
         }
 
-        // Store the profile as-is for later use on the post-raid exp screen 
+        // Store the profile as-is for later use on the post-raid exp screen
         const currentProfile = this.saveServer.getProfile(sessionID);
         this.profileSnapshotService.storeProfileSnapshot(sessionID, currentProfile);
     }
@@ -165,23 +175,109 @@ export class MatchController
 
     /** Handle client/match/offline/end */
     public endOfflineRaid(info: IEndOfflineRaidRequestData, sessionId: string): void
-    {       
+    {
         const pmcData: IPmcData = this.profileHelper.getPmcProfile(sessionId);
         const extractName = info.exitName;
 
         // Save time spent in raid
-        pmcData.Stats.TotalInGameTime += info.raidSeconds;
+        pmcData.Stats.Eft.TotalInGameTime += info.raidSeconds;
 
-        // clean up cached bots now raid is over
+        // Clean up cached bots now raid is over
         this.botGenerationCacheService.clearStoredBots();
 
-        // clear bot loot cache
+        // Clear bot loot cache
         this.botLootCacheService.clearCache();
 
         if (this.extractWasViaCar(extractName))
         {
             this.handleCarExtract(extractName, pmcData, sessionId);
         }
+
+        if (extractName && this.extractWasViaCoop(extractName) && this.traderConfig.fence.coopExtractGift.sendGift)
+        {
+            this.handleCoopExtract(pmcData, extractName);
+            this.sendCoopTakenFenceMessage(sessionId);
+        }
+    }
+
+    /**
+     * Did player take a COOP extract
+     * @param extractName Name of extract player took
+     * @returns True if coop extract
+     */
+    protected extractWasViaCoop(extractName: string): boolean
+    {
+        // No extract name, not a coop extract
+        if (!extractName)
+        {
+            return false;
+        }
+
+        return (this.inraidConfig.coopExtracts.includes(extractName.trim()));
+    }
+
+    protected sendCoopTakenFenceMessage(sessionId: string): void
+    {
+        // Generate reward for taking coop extract
+        const loot = this.lootGenerator.createRandomLoot(this.traderConfig.fence.coopExtractGift);
+        const mailableLoot: Item[] = [];
+
+        const parentId = this.hashUtil.generate();
+        for (const item of loot)
+        {
+            mailableLoot.push({
+                _id: item.id,
+                _tpl: item.tpl,
+                slotId: "main",
+                parentId: parentId,
+                upd: { StackObjectsCount: item.stackCount, SpawnedInSession: true },
+            });
+        }
+
+        // Send message from fence giving player reward generated above
+        this.mailSendService.sendLocalisedNpcMessageToPlayer(
+            sessionId,
+            this.traderHelper.getTraderById(Traders.FENCE),
+            MessageType.MESSAGE_WITH_ITEMS,
+            this.randomUtil.getArrayValue(this.traderConfig.fence.coopExtractGift.messageLocaleIds),
+            mailableLoot,
+            this.timeUtil.getHoursAsSeconds(this.traderConfig.fence.coopExtractGift.giftExpiryHours),
+        );
+    }
+
+    /**
+     * Handle when a player extracts using a coop extract - add rep to fence
+     * @param pmcData Profile
+     * @param extractName Name of extract taken
+     */
+    protected handleCoopExtract(pmcData: IPmcData, extractName: string): void
+    {
+        if (!pmcData.CoopExtractCounts)
+        {
+            pmcData.CoopExtractCounts = {};
+        }
+
+        // Ensure key exists for extract
+        if (!(extractName in pmcData.CoopExtractCounts))
+        {
+            pmcData.CoopExtractCounts[extractName] = 0;
+        }
+
+        // Increment extract count value
+        pmcData.CoopExtractCounts[extractName] += 1;
+
+        // Get new fence standing value
+        const newFenceStanding = this.getFenceStandingAfterExtract(
+            pmcData,
+            this.inraidConfig.coopExtractBaseStandingGain,
+            pmcData.CoopExtractCounts[extractName],
+        );
+        const fenceId: string = Traders.FENCE;
+        pmcData.TradersInfo[fenceId].standing = newFenceStanding;
+
+        // Check if new standing has leveled up trader
+        this.traderHelper.lvlUp(fenceId, pmcData);
+        pmcData.TradersInfo[fenceId].loyaltyLevel = Math.max(pmcData.TradersInfo[fenceId].loyaltyLevel, 1);
     }
 
     /**
@@ -191,7 +287,18 @@ export class MatchController
      */
     protected extractWasViaCar(extractName: string): boolean
     {
-        return this.inraidConfig.carExtracts.includes(extractName);
+        // exit name is null on death
+        if (!extractName)
+        {
+            return false;
+        }
+
+        if (extractName.toLowerCase().includes("v-ex"))
+        {
+            return true;
+        }
+
+        return this.inraidConfig.carExtracts.includes(extractName.trim());
     }
 
     /**
@@ -211,31 +318,45 @@ export class MatchController
         // Increment extract count value
         pmcData.CarExtractCounts[extractName] += 1;
 
+        // Not exact replica of Live behaviour
+        // Simplified for now, no real reason to do the whole (unconfirmed) extra 0.01 standing per day regeneration mechanic
+        const newFenceStanding = this.getFenceStandingAfterExtract(
+            pmcData,
+            this.inraidConfig.carExtractBaseStandingGain,
+            pmcData.CarExtractCounts[extractName],
+        );
         const fenceId: string = Traders.FENCE;
-        this.updateFenceStandingInProfile(pmcData, fenceId, extractName);
-        
-        this.traderHelper.lvlUp(fenceId, sessionId);
+        pmcData.TradersInfo[fenceId].standing = newFenceStanding;
+
+        // Check if new standing has leveled up trader
+        this.traderHelper.lvlUp(fenceId, pmcData);
         pmcData.TradersInfo[fenceId].loyaltyLevel = Math.max(pmcData.TradersInfo[fenceId].loyaltyLevel, 1);
+
+        this.logger.debug(
+            `Car extract: ${extractName} used, total times taken: ${pmcData.CarExtractCounts[extractName]}`,
+        );
     }
 
     /**
-     * Update players fence trader standing value in profile
-     * @param pmcData Player profile
-     * @param fenceId Id of fence trader
-     * @param extractName Name of extract used 
+     * Get the fence rep gain from using a car or coop extract
+     * @param pmcData Profile
+     * @param baseGain amount gained for the first extract
+     * @param extractCount Number of times extract was taken
+     * @returns Fence standing after taking extract
      */
-    protected updateFenceStandingInProfile(pmcData: IPmcData, fenceId: string, extractName: string): void
+    protected getFenceStandingAfterExtract(pmcData: IPmcData, baseGain: number, extractCount: number): number
     {
+        // Get current standing
+        const fenceId: string = Traders.FENCE;
         let fenceStanding = Number(pmcData.TradersInfo[fenceId].standing);
 
-        // Not exact replica of Live behaviour
-        // Simplified for now, no real reason to do the whole (unconfirmed) extra 0.01 standing per day regeneration mechanic
-        const baseGain: number = this.inraidConfig.carExtractBaseStandingGain;
-        const extractCount: number = pmcData.CarExtractCounts[extractName];
-
+        // get standing after taking extract x times, x.xx format, gain from extract can be no smaller than 0.01
         fenceStanding += Math.max(baseGain / extractCount, 0.01);
 
-        // Ensure fence loyalty level is not above/below the range -7 - 15
-        pmcData.TradersInfo[fenceId].standing = Math.min(Math.max(fenceStanding, -7), 15);
+        // Ensure fence loyalty level is not above/below the range -7 to 15
+        const newFenceStanding = Math.min(Math.max(fenceStanding, -7), 15);
+        this.logger.debug(`Old vs new fence standing: ${pmcData.TradersInfo[fenceId].standing}, ${newFenceStanding}`);
+
+        return Number(newFenceStanding.toFixed(2));
     }
 }

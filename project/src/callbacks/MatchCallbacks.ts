@@ -1,30 +1,29 @@
 import { inject, injectable } from "tsyringe";
 
-import { MatchController } from "../controllers/MatchController";
-import { IEmptyRequestData } from "../models/eft/common/IEmptyRequestData";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { IGetBodyResponseData } from "../models/eft/httpResponse/IGetBodyResponseData";
-import { INullResponseData } from "../models/eft/httpResponse/INullResponseData";
-import { IAcceptGroupInviteRequest } from "../models/eft/match/IAcceptGroupInviteRequest";
-import { IAcceptGroupInviteResponse } from "../models/eft/match/IAcceptGroupInviteResponse";
-import { ICancelGroupInviteRequest } from "../models/eft/match/ICancelGroupInviteRequest";
-import { ICreateGroupRequestData } from "../models/eft/match/ICreateGroupRequestData";
-import { IEndOfflineRaidRequestData } from "../models/eft/match/IEndOfflineRaidRequestData";
-import { IGetGroupStatusRequestData } from "../models/eft/match/IGetGroupStatusRequestData";
-import { IGetProfileRequestData } from "../models/eft/match/IGetProfileRequestData";
-import {
-    IGetRaidConfigurationRequestData
-} from "../models/eft/match/IGetRaidConfigurationRequestData";
-import { IJoinMatchRequestData } from "../models/eft/match/IJoinMatchRequestData";
-import { IJoinMatchResult } from "../models/eft/match/IJoinMatchResult";
-import { IPutMetricsRequestData } from "../models/eft/match/IPutMetricsRequestData";
-import { IRemovePlayerFromGroupRequest } from "../models/eft/match/IRemovePlayerFromGroupRequest";
-import { ISendGroupInviteRequest } from "../models/eft/match/ISendGroupInviteRequest";
-import { ITransferGroupRequest } from "../models/eft/match/ITransferGroupRequest";
-import { IUpdatePingRequestData } from "../models/eft/match/IUpdatePingRequestData";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
-import { JsonUtil } from "../utils/JsonUtil";
+import { MatchController } from "@spt-aki/controllers/MatchController";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { INullResponseData } from "@spt-aki/models/eft/httpResponse/INullResponseData";
+import { IAcceptGroupInviteRequest } from "@spt-aki/models/eft/match/IAcceptGroupInviteRequest";
+import { IAcceptGroupInviteResponse } from "@spt-aki/models/eft/match/IAcceptGroupInviteResponse";
+import { ICancelGroupInviteRequest } from "@spt-aki/models/eft/match/ICancelGroupInviteRequest";
+import { ICreateGroupRequestData } from "@spt-aki/models/eft/match/ICreateGroupRequestData";
+import { IEndOfflineRaidRequestData } from "@spt-aki/models/eft/match/IEndOfflineRaidRequestData";
+import { IGetGroupStatusRequestData } from "@spt-aki/models/eft/match/IGetGroupStatusRequestData";
+import { IGetGroupStatusResponse } from "@spt-aki/models/eft/match/IGetGroupStatusResponse";
+import { IGetProfileRequestData } from "@spt-aki/models/eft/match/IGetProfileRequestData";
+import { IGetRaidConfigurationRequestData } from "@spt-aki/models/eft/match/IGetRaidConfigurationRequestData";
+import { IJoinMatchRequestData } from "@spt-aki/models/eft/match/IJoinMatchRequestData";
+import { IJoinMatchResult } from "@spt-aki/models/eft/match/IJoinMatchResult";
+import { IPutMetricsRequestData } from "@spt-aki/models/eft/match/IPutMetricsRequestData";
+import { IRemovePlayerFromGroupRequest } from "@spt-aki/models/eft/match/IRemovePlayerFromGroupRequest";
+import { ISendGroupInviteRequest } from "@spt-aki/models/eft/match/ISendGroupInviteRequest";
+import { ITransferGroupRequest } from "@spt-aki/models/eft/match/ITransferGroupRequest";
+import { IUpdatePingRequestData } from "@spt-aki/models/eft/match/IUpdatePingRequestData";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class MatchCallbacks
@@ -33,9 +32,9 @@ export class MatchCallbacks
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
         @inject("MatchController") protected matchController: MatchController,
-        @inject("DatabaseServer") protected databaseServer: DatabaseServer
+        @inject("DatabaseServer") protected databaseServer: DatabaseServer,
     )
-    { }
+    {}
 
     /** Handle client/match/updatePing */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -79,7 +78,11 @@ export class MatchCallbacks
 
     /** Handle client/match/group/invite/accept */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public acceptGroupInvite(url: string, info: IAcceptGroupInviteRequest, sessionID: string): IGetBodyResponseData<IAcceptGroupInviteResponse[]>
+    public acceptGroupInvite(
+        url: string,
+        info: IAcceptGroupInviteRequest,
+        sessionID: string,
+    ): IGetBodyResponseData<IAcceptGroupInviteResponse[]>
     {
         const result = [];
         result.push({});
@@ -89,7 +92,11 @@ export class MatchCallbacks
 
     /** Handle client/match/group/invite/cancel */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public cancelGroupInvite(url: string, info: ICancelGroupInviteRequest, sessionID: string): IGetBodyResponseData<boolean>
+    public cancelGroupInvite(
+        url: string,
+        info: ICancelGroupInviteRequest,
+        sessionID: string,
+    ): IGetBodyResponseData<boolean>
     {
         return this.httpResponse.getBody(true);
     }
@@ -127,16 +134,15 @@ export class MatchCallbacks
     {
         const output = this.matchController.getEnabled();
 
-        if (output === false)
-        {
-            return this.httpResponse.getBody(null, 420, "Please play as PMC and go through the offline settings screen before pressing ready");
-        }
-
         return this.httpResponse.getBody(output);
     }
 
     /** Handle match/group/start_game */
-    public joinMatch(url: string, info: IJoinMatchRequestData, sessionID: string): IGetBodyResponseData<IJoinMatchResult>
+    public joinMatch(
+        url: string,
+        info: IJoinMatchRequestData,
+        sessionID: string,
+    ): IGetBodyResponseData<IJoinMatchResult>
     {
         return this.httpResponse.getBody(this.matchController.joinMatch(info, sessionID));
     }
@@ -151,15 +157,16 @@ export class MatchCallbacks
     /**
      * @deprecated - not called on raid start/end or game start/exit
      * Handle client/match/group/status
-     * @returns 
+     * @returns
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    public getGroupStatus(url: string, info: IGetGroupStatusRequestData, sessionID: string): IGetBodyResponseData<any>
+    public getGroupStatus(url: string, info: IGetGroupStatusRequestData, sessionID: string): IGetBodyResponseData<IGetGroupStatusResponse>
     {
         return this.httpResponse.getBody(this.matchController.getGroupStatus(info));
     }
 
     /** Handle client/match/group/create */
+    // TODO: may have been removed from client
     public createGroup(url: string, info: ICreateGroupRequestData, sessionID: string): IGetBodyResponseData<any>
     {
         return this.httpResponse.getBody(this.matchController.createGroup(sessionID, info));
@@ -195,7 +202,11 @@ export class MatchCallbacks
     }
 
     /** Handle client/raid/configuration */
-    public getRaidConfiguration(url: string, info: IGetRaidConfigurationRequestData, sessionID: string): INullResponseData
+    public getRaidConfiguration(
+        url: string,
+        info: IGetRaidConfigurationRequestData,
+        sessionID: string,
+    ): INullResponseData
     {
         this.matchController.startOfflineRaid(info, sessionID);
         return this.httpResponse.nullResponse();

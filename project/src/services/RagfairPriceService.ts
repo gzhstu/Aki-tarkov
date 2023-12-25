@@ -1,22 +1,23 @@
 import { inject, injectable } from "tsyringe";
 
-import { OnLoad } from "../di/OnLoad";
-import { HandbookHelper } from "../helpers/HandbookHelper";
-import { ItemHelper } from "../helpers/ItemHelper";
-import { PresetHelper } from "../helpers/PresetHelper";
-import { TraderHelper } from "../helpers/TraderHelper";
-import { IPreset } from "../models/eft/common/IGlobals";
-import { Item } from "../models/eft/common/tables/IItem";
-import { IBarterScheme } from "../models/eft/common/tables/ITrader";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { Money } from "../models/enums/Money";
-import { IRagfairConfig } from "../models/spt/config/IRagfairConfig";
-import { IRagfairServerPrices } from "../models/spt/ragfair/IRagfairServerPrices";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { RandomUtil } from "../utils/RandomUtil";
-import { LocalisationService } from "./LocalisationService";
+import { OnLoad } from "@spt-aki/di/OnLoad";
+import { HandbookHelper } from "@spt-aki/helpers/HandbookHelper";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { PresetHelper } from "@spt-aki/helpers/PresetHelper";
+import { TraderHelper } from "@spt-aki/helpers/TraderHelper";
+import { MinMax } from "@spt-aki/models/common/MinMax";
+import { IPreset } from "@spt-aki/models/eft/common/IGlobals";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { IBarterScheme } from "@spt-aki/models/eft/common/tables/ITrader";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { Money } from "@spt-aki/models/enums/Money";
+import { IRagfairConfig } from "@spt-aki/models/spt/config/IRagfairConfig";
+import { IRagfairServerPrices } from "@spt-aki/models/spt/ragfair/IRagfairServerPrices";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
 
 /**
  * Stores flea prices for items as well as methods to interact with them
@@ -28,10 +29,7 @@ export class RagfairPriceService implements OnLoad
     protected generatedDynamicPrices: boolean;
     protected generatedStaticPrices: boolean;
 
-    protected prices: IRagfairServerPrices = {
-        static: {},
-        dynamic: {}
-    };
+    protected prices: IRagfairServerPrices = { static: {}, dynamic: {} };
 
     constructor(
         @inject("HandbookHelper") protected handbookHelper: HandbookHelper,
@@ -42,7 +40,7 @@ export class RagfairPriceService implements OnLoad
         @inject("TraderHelper") protected traderHelper: TraderHelper,
         @inject("RandomUtil") protected randomUtil: RandomUtil,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.ragfairConfig = this.configServer.getConfig(ConfigTypes.RAGFAIR);
@@ -51,10 +49,8 @@ export class RagfairPriceService implements OnLoad
     /**
      * Generate static (handbook) and dynamic (prices.json) flea prices, store inside class as dictionaries
      */
-    public async onLoad(): Promise<void> 
+    public async onLoad(): Promise<void>
     {
-        this.addMissingHandbookPrices();
-
         if (!this.generatedStaticPrices)
         {
             this.generateStaticPrices();
@@ -68,28 +64,7 @@ export class RagfairPriceService implements OnLoad
         }
     }
 
-    /**
-     * Add placeholder values for items missing from handbook
-     */
-    protected addMissingHandbookPrices(): void
-    {
-        const db = this.databaseServer.getTables();
-        const sealedWeaponContainers = Object.values(db.templates.items).filter(x => x._name.includes("event_container_airdrop"));
-
-        for (const container of sealedWeaponContainers)
-        {
-            // doesnt have a handbook value
-            if (db.templates.handbook.Items.findIndex(x => x.Id === container._id)  === -1)
-            {
-                db.templates.handbook.Items.push({Id: container._id, ParentId: container._parent, Price: 100});
-            }
-        }
-
-        // Add handbook record for: Primorsky Ave apartment key
-        db.templates.handbook.Items.push({Id: "6391fcf5744e45201147080f", ParentId: "5c99f98d86f7745c314214b3", Price: 1});
-    }
-
-    public getRoute(): string 
+    public getRoute(): string
     {
         return "RagfairPriceService";
     }
@@ -99,7 +74,11 @@ export class RagfairPriceService implements OnLoad
      */
     public generateStaticPrices(): void
     {
-        for (const item of Object.values(this.databaseServer.getTables().templates.items).filter(x => x._type === "Item"))
+        for (
+            const item of Object.values(this.databaseServer.getTables().templates.items).filter((x) =>
+                x._type === "Item"
+            )
+        )
         {
             this.prices.static[item._id] = Math.round(this.handbookHelper.getTemplatePrice(item._id));
         }
@@ -123,9 +102,11 @@ export class RagfairPriceService implements OnLoad
     {
         // Get dynamic price (templates/prices), if that doesnt exist get price from static array (templates/handbook)
         let itemPrice = this.getDynamicPriceForItem(tplId) || this.getStaticPriceForItem(tplId);
-        if (!itemPrice)
+        if (itemPrice === undefined)
         {
-            this.logger.warning(this.localisationService.getText("ragfair-unable_to_find_item_price_for_item_in_flea_handbook", tplId));
+            this.logger.warning(
+                this.localisationService.getText("ragfair-unable_to_find_item_price_for_item_in_flea_handbook", tplId),
+            );
         }
 
         // If no price in dynamic/static, set to 1
@@ -177,7 +158,7 @@ export class RagfairPriceService implements OnLoad
 
     public getAllStaticPrices(): Record<string, number>
     {
-        return {...this.prices.static};
+        return { ...this.prices.static };
     }
 
     /**
@@ -193,7 +174,7 @@ export class RagfairPriceService implements OnLoad
 
     /**
      * Get the rouble price for an assorts barter scheme
-     * @param barterScheme 
+     * @param barterScheme
      * @returns Rouble price
      */
     public getBarterPrice(barterScheme: IBarterScheme[]): number
@@ -202,7 +183,7 @@ export class RagfairPriceService implements OnLoad
 
         for (const item of barterScheme)
         {
-            price += (this.prices.static[item._tpl] * item.count);
+            price += this.prices.static[item._tpl] * item.count;
         }
 
         return Math.round(price);
@@ -212,9 +193,10 @@ export class RagfairPriceService implements OnLoad
      * Generate a currency cost for an item and its mods
      * @param items Item with mods to get price for
      * @param desiredCurrency Currency price desired in
+     * @param isPackOffer Price is for a pack type offer
      * @returns cost of item in desired currency
      */
-    public getDynamicOfferPrice(items: Item[], desiredCurrency: string): number
+    public getDynamicOfferPriceForOffer(items: Item[], desiredCurrency: string, isPackOffer: boolean): number
     {
         // Price to return
         let price = 0;
@@ -240,7 +222,7 @@ export class RagfairPriceService implements OnLoad
                     itemPrice = traderPrice;
                 }
             }
-            
+
             // Check if item type is weapon preset, handle differently
             const itemDetails = this.itemHelper.getItem(item._tpl);
             if (this.presetHelper.isPreset(item._id) && itemDetails[1]._props.weapFireType)
@@ -267,15 +249,37 @@ export class RagfairPriceService implements OnLoad
             }
         }
 
-        // Use different min/max values if the item is a preset
-        price = this.randomisePrice(price, isPreset);
-        
+        const rangeValues = this.getOfferTypeRangeValues(isPreset, isPackOffer);
+        price = this.randomiseOfferPrice(price, rangeValues);
+
         if (price < 1)
         {
             price = 1;
         }
 
         return price;
+    }
+
+    /**
+     * Get different min/max price multipliers for different offer types (preset/pack/default)
+     * @param isPreset Offer is a preset
+     * @param isPack Offer is a pack
+     * @returns MinMax values
+     */
+    protected getOfferTypeRangeValues(isPreset: boolean, isPack: boolean): MinMax
+    {
+        // Use different min/max values if the item is a preset or pack
+        const priceRanges = this.ragfairConfig.dynamic.priceRanges;
+        if (isPreset)
+        {
+            return priceRanges.preset;
+        }
+        else if (isPack)
+        {
+            return priceRanges.pack;
+        }
+
+        return priceRanges.default;
     }
 
     /**
@@ -290,12 +294,16 @@ export class RagfairPriceService implements OnLoad
         const priceDifferencePercent = this.getPriceDifference(itemHandbookPrice, itemPrice);
 
         // Only adjust price if difference is > a percent AND item price passes threshhold set in config
-        if (priceDifferencePercent > this.ragfairConfig.dynamic.offerAdjustment.maxPriceDifferenceBelowHandbookPercent
-            && itemPrice >= this.ragfairConfig.dynamic.offerAdjustment.priceThreshholdRub)
+        if (
+            priceDifferencePercent > this.ragfairConfig.dynamic.offerAdjustment.maxPriceDifferenceBelowHandbookPercent
+            && itemPrice >= this.ragfairConfig.dynamic.offerAdjustment.priceThreshholdRub
+        )
         {
-            //const itemDetails = this.itemHelper.getItem(itemTpl);
-            //this.logger.debug(`item below handbook price ${itemDetails[1]._name} handbook: ${itemHandbookPrice} flea: ${itemPrice} ${priceDifferencePercent}%`);
-            itemPrice = Math.round(itemHandbookPrice * this.ragfairConfig.dynamic.offerAdjustment.handbookPriceMultipier);
+            // const itemDetails = this.itemHelper.getItem(itemTpl);
+            // this.logger.debug(`item below handbook price ${itemDetails[1]._name} handbook: ${itemHandbookPrice} flea: ${itemPrice} ${priceDifferencePercent}%`);
+            itemPrice = Math.round(
+                itemHandbookPrice * this.ragfairConfig.dynamic.offerAdjustment.handbookPriceMultipier,
+            );
         }
 
         return itemPrice;
@@ -304,21 +312,13 @@ export class RagfairPriceService implements OnLoad
     /**
      * Multiply the price by a randomised curve where n = 2, shift = 2
      * @param existingPrice price to alter
-     * @param isPreset is the item we're multiplying a preset
+     * @param rangeValues min and max to adjust price by
      * @returns multiplied price
      */
-    protected randomisePrice(existingPrice: number, isPreset: boolean): number
+    protected randomiseOfferPrice(existingPrice: number, rangeValues: MinMax): number
     {
-        const min = (isPreset)
-            ? this.ragfairConfig.dynamic.presetPrice.min
-            : this.ragfairConfig.dynamic.price.min;
-
-        const max = (isPreset)
-            ? this.ragfairConfig.dynamic.presetPrice.max
-            : this.ragfairConfig.dynamic.price.max;
-    
         // Multiply by 100 to get 2 decimal places of precision
-        const multiplier = this.randomUtil.getBiasedRandomNumber(min * 100, max * 100, 2, 2);
+        const multiplier = this.randomUtil.getBiasedRandomNumber(rangeValues.min * 100, rangeValues.max * 100, 2, 2);
 
         // return multiplier back to its original decimal place location
         return existingPrice * (multiplier / 100);
@@ -351,7 +351,9 @@ export class RagfairPriceService implements OnLoad
         }
 
         // Get mods on current gun not in default preset
-        const newOrReplacedModsInPresetVsDefault = items.filter(x => !presetResult.preset._items.some(y => y._tpl === x._tpl));
+        const newOrReplacedModsInPresetVsDefault = items.filter((x) =>
+            !presetResult.preset._items.some((y) => y._tpl === x._tpl)
+        );
 
         // Add up extra mods price
         let extraModsPrice = 0;
@@ -365,7 +367,9 @@ export class RagfairPriceService implements OnLoad
         if (newOrReplacedModsInPresetVsDefault.length >= 1)
         {
             // Add up cost of mods replaced
-            const modsReplacedByNewMods = newOrReplacedModsInPresetVsDefault.filter(x => presetResult.preset._items.some(y => y.slotId === x.slotId));
+            const modsReplacedByNewMods = newOrReplacedModsInPresetVsDefault.filter((x) =>
+                presetResult.preset._items.some((y) => y.slotId === x.slotId)
+            );
 
             // Add up replaced mods price
             let replacedModsPrice = 0;
@@ -379,7 +383,7 @@ export class RagfairPriceService implements OnLoad
         }
 
         // return extra mods price + base gun price
-        return existingPrice += extraModsPrice;
+        return existingPrice + extraModsPrice;
     }
 
     /**
@@ -405,29 +409,31 @@ export class RagfairPriceService implements OnLoad
      * @param presets weapon presets to choose from
      * @returns Default preset object
      */
-    protected getWeaponPreset(presets: IPreset[], weapon: Item): {isDefault: boolean, preset: IPreset}
+    protected getWeaponPreset(presets: IPreset[], weapon: Item): { isDefault: boolean; preset: IPreset; }
     {
-        const defaultPreset = presets.find(x => x._encyclopedia);
+        const defaultPreset = presets.find((x) => x._encyclopedia);
         if (defaultPreset)
         {
-            return {
-                isDefault: true,
-                preset: defaultPreset
-            };
+            return { isDefault: true, preset: defaultPreset };
         }
 
         if (presets.length === 1)
         {
-            this.logger.debug(`Item Id: ${weapon._tpl} has no default encyclopedia entry but only one preset (${presets[0]._name}), choosing preset (${presets[0]._name})`);
+            this.logger.debug(
+                `Item Id: ${weapon._tpl} has no default encyclopedia entry but only one preset (${
+                    presets[0]._name
+                }), choosing preset (${presets[0]._name})`,
+            );
         }
         else
         {
-            this.logger.debug(`Item Id: ${weapon._tpl} has no default encyclopedia entry, choosing first preset (${presets[0]._name}) of ${presets.length}`);
+            this.logger.debug(
+                `Item Id: ${weapon._tpl} has no default encyclopedia entry, choosing first preset (${
+                    presets[0]._name
+                }) of ${presets.length}`,
+            );
         }
 
-        return {
-            isDefault: false,
-            preset: presets[0]
-        };
+        return { isDefault: false, preset: presets[0] };
     }
 }

@@ -1,25 +1,25 @@
 import { inject, injectable } from "tsyringe";
 
-import { LauncherController } from "../controllers/LauncherController";
-import { IEmptyRequestData } from "../models/eft/common/IEmptyRequestData";
-import { IChangeRequestData } from "../models/eft/launcher/IChangeRequestData";
-import { ILoginRequestData } from "../models/eft/launcher/ILoginRequestData";
-import { IRegisterData } from "../models/eft/launcher/IRegisterData";
-import { IRemoveProfileData } from "../models/eft/launcher/IRemoveProfileData";
-import { SaveServer } from "../servers/SaveServer";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
-import { Watermark } from "../utils/Watermark";
+import { LauncherController } from "@spt-aki/controllers/LauncherController";
+import { IEmptyRequestData } from "@spt-aki/models/eft/common/IEmptyRequestData";
+import { IChangeRequestData } from "@spt-aki/models/eft/launcher/IChangeRequestData";
+import { ILoginRequestData } from "@spt-aki/models/eft/launcher/ILoginRequestData";
+import { IRegisterData } from "@spt-aki/models/eft/launcher/IRegisterData";
+import { IRemoveProfileData } from "@spt-aki/models/eft/launcher/IRemoveProfileData";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
+import { Watermark } from "@spt-aki/utils/Watermark";
 
 @injectable()
-class LauncherCallbacks
+export class LauncherCallbacks
 {
     constructor(
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("LauncherController") protected launcherController: LauncherController,
         @inject("SaveServer") protected saveServer: SaveServer,
-        @inject("Watermark") protected watermark: Watermark
+        @inject("Watermark") protected watermark: Watermark,
     )
-    { }
+    {}
 
     public connect(): string
     {
@@ -99,6 +99,3 @@ class LauncherCallbacks
         return this.httpResponse.noBody(this.launcherController.getServerModsProfileUsed(sessionId));
     }
 }
-
-export { LauncherCallbacks };
-

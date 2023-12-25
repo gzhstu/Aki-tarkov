@@ -1,40 +1,41 @@
 import { inject, injectable } from "tsyringe";
-import { IAsyncQueue } from "../../models/spt/utils/IAsyncQueue";
-import { IUUidGenerator } from "../../models/spt/utils/IUuidGenerator";
-import { AbstractWinstonLogger } from "./AbstractWinstonLogger";
+
+import { IAsyncQueue } from "@spt-aki/models/spt/utils/IAsyncQueue";
+import { IUUidGenerator } from "@spt-aki/models/spt/utils/IUuidGenerator";
+import { AbstractWinstonLogger } from "@spt-aki/utils/logging/AbstractWinstonLogger";
 
 @injectable()
-export class WinstonRequestLogger extends AbstractWinstonLogger 
+export class WinstonRequestLogger extends AbstractWinstonLogger
 {
     constructor(
         @inject("AsyncQueue") protected asyncQueue: IAsyncQueue,
-        @inject("UUidGenerator") protected uuidGenerator: IUUidGenerator
+        @inject("UUidGenerator") protected uuidGenerator: IUUidGenerator,
     )
     {
         super(asyncQueue, uuidGenerator);
     }
 
-    protected isLogExceptions(): boolean 
+    protected isLogExceptions(): boolean
     {
         return false;
     }
 
-    protected isLogToFile(): boolean 
+    protected isLogToFile(): boolean
     {
         return true;
     }
 
-    protected isLogToConsole(): boolean 
+    protected isLogToConsole(): boolean
     {
         return false;
     }
 
-    protected getFilePath(): string 
+    protected getFilePath(): string
     {
         return "./user/logs/requests/";
     }
 
-    protected getFileName(): string 
+    protected getFileName(): string
     {
         return "requests-%DATE%.log";
     }

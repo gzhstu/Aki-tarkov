@@ -1,26 +1,25 @@
 import { inject, injectable } from "tsyringe";
 
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { ITraderAssort } from "../models/eft/common/tables/ITrader";
-import { QuestStatus } from "../models/enums/QuestStatus";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { LocalisationService } from "../services/LocalisationService";
-import { ItemHelper } from "./ItemHelper";
-import { QuestHelper } from "./QuestHelper";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { QuestHelper } from "@spt-aki/helpers/QuestHelper";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { ITraderAssort } from "@spt-aki/models/eft/common/tables/ITrader";
+import { QuestStatus } from "@spt-aki/models/enums/QuestStatus";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
 
 @injectable()
 export class AssortHelper
 {
-
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("ItemHelper") protected itemHelper: ItemHelper,
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("QuestHelper") protected questHelper: QuestHelper
+        @inject("QuestHelper") protected questHelper: QuestHelper,
     )
-    { }
+    {}
 
     /**
      * Remove assorts from a trader that have not been unlocked yet (via player completing corrisponding quest)
@@ -30,7 +29,13 @@ export class AssortHelper
      * @param mergedQuestAssorts Dict of quest assort to quest id unlocks for all traders (key = started/failed/complete)
      * @returns Assort items minus locked quest assorts
      */
-    public stripLockedQuestAssort(pmcProfile: IPmcData, traderId: string, traderAssorts: ITraderAssort, mergedQuestAssorts: Record<string, Record<string, string>>, flea = false): ITraderAssort
+    public stripLockedQuestAssort(
+        pmcProfile: IPmcData,
+        traderId: string,
+        traderAssorts: ITraderAssort,
+        mergedQuestAssorts: Record<string, Record<string, string>>,
+        flea = false,
+    ): ITraderAssort
     {
         // Trader assort does not always contain loyal_level_items
         if (!traderAssorts.loyal_level_items)
@@ -67,20 +72,26 @@ export class AssortHelper
      * @param assortId Assort to look for linked quest id
      * @returns quest id + array of quest status the assort should show for
      */
-    protected getQuestIdAndStatusThatShowAssort(mergedQuestAssorts: Record<string, Record<string, string>>, assortId: string): { questId: string; status: QuestStatus[]; }
+    protected getQuestIdAndStatusThatShowAssort(
+        mergedQuestAssorts: Record<string, Record<string, string>>,
+        assortId: string,
+    ): { questId: string; status: QuestStatus[]; }
     {
         if (assortId in mergedQuestAssorts.started)
         {
             // Assort unlocked by starting quest, assort is visible to player when : started or ready to hand in + handed in
-            return { questId: mergedQuestAssorts.started[assortId], status: [QuestStatus.Started, QuestStatus.AvailableForFinish, QuestStatus.Success]};
+            return {
+                questId: mergedQuestAssorts.started[assortId],
+                status: [QuestStatus.Started, QuestStatus.AvailableForFinish, QuestStatus.Success],
+            };
         }
         else if (assortId in mergedQuestAssorts.success)
         {
-            return { questId: mergedQuestAssorts.success[assortId], status: [QuestStatus.Success]};
+            return { questId: mergedQuestAssorts.success[assortId], status: [QuestStatus.Success] };
         }
         else if (assortId in mergedQuestAssorts.fail)
         {
-            return { questId: mergedQuestAssorts.fail[assortId], status: [QuestStatus.Fail]};
+            return { questId: mergedQuestAssorts.fail[assortId], status: [QuestStatus.Fail] };
         }
 
         return undefined;
@@ -103,6 +114,7 @@ export class AssortHelper
             return assort;
         }
 
+        // Remove items not unlocked from quest status change (ASSORTMENT_UNLOCK)
         for (const itemId in assort.loyal_level_items)
         {
             if (assort.loyal_level_items[itemId] > pmcProfile.TradersInfo[traderId].loyaltyLevel)
@@ -126,7 +138,7 @@ export class AssortHelper
 
         if (assort.barter_scheme[itemID] && flea)
         {
-            assort.barter_scheme[itemID].forEach(b => b.forEach(br => br.sptQuestLocked = true));
+            assort.barter_scheme[itemID].forEach((b) => b.forEach((br) => br.sptQuestLocked = true));
             return assort;
         }
         delete assort.barter_scheme[itemID];

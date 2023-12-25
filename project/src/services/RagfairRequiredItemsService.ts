@@ -1,8 +1,8 @@
 import { inject, injectable } from "tsyringe";
 
-import { PaymentHelper } from "../helpers/PaymentHelper";
-import { RagfairOfferService } from "../services/RagfairOfferService";
-import { ILogger } from "../models/spt/utils/ILogger";
+import { PaymentHelper } from "@spt-aki/helpers/PaymentHelper";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { RagfairOfferService } from "@spt-aki/services/RagfairOfferService";
 
 @injectable()
 export class RagfairRequiredItemsService
@@ -12,9 +12,9 @@ export class RagfairRequiredItemsService
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("PaymentHelper") protected paymentHelper: PaymentHelper,
-        @inject("RagfairOfferService") protected ragfairOfferService: RagfairOfferService
+        @inject("RagfairOfferService") protected ragfairOfferService: RagfairOfferService,
     )
-    { }
+    {}
 
     public getRequiredItemsById(searchId: string): any
     {
@@ -50,5 +50,4 @@ export class RagfairRequiredItemsService
 
         this.requiredItemsCache = requiredItems;
     }
-
 }

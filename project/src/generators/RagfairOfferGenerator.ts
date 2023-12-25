@@ -1,39 +1,41 @@
 import { inject, injectable } from "tsyringe";
 
-import { HandbookHelper } from "../helpers/HandbookHelper";
-import { ItemHelper } from "../helpers/ItemHelper";
-import { PaymentHelper } from "../helpers/PaymentHelper";
-import { PresetHelper } from "../helpers/PresetHelper";
-import { RagfairServerHelper } from "../helpers/RagfairServerHelper";
-import { Item } from "../models/eft/common/tables/IItem";
-import { ITemplateItem } from "../models/eft/common/tables/ITemplateItem";
-import { IBarterScheme } from "../models/eft/common/tables/ITrader";
-import { IRagfairOffer, OfferRequirement } from "../models/eft/ragfair/IRagfairOffer";
-import { BaseClasses } from "../models/enums/BaseClasses";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { MemberCategory } from "../models/enums/MemberCategory";
-import { Money } from "../models/enums/Money";
-import { Dynamic, IRagfairConfig } from "../models/spt/config/IRagfairConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { SaveServer } from "../servers/SaveServer";
-import { FenceService } from "../services/FenceService";
-import { LocalisationService } from "../services/LocalisationService";
-import { RagfairCategoriesService } from "../services/RagfairCategoriesService";
-import { RagfairOfferService } from "../services/RagfairOfferService";
-import { RagfairPriceService } from "../services/RagfairPriceService";
-import { HashUtil } from "../utils/HashUtil";
-import { JsonUtil } from "../utils/JsonUtil";
-import { RandomUtil } from "../utils/RandomUtil";
-import { TimeUtil } from "../utils/TimeUtil";
-import { RagfairAssortGenerator } from "./RagfairAssortGenerator";
+import { RagfairAssortGenerator } from "@spt-aki/generators/RagfairAssortGenerator";
+import { HandbookHelper } from "@spt-aki/helpers/HandbookHelper";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { PaymentHelper } from "@spt-aki/helpers/PaymentHelper";
+import { PresetHelper } from "@spt-aki/helpers/PresetHelper";
+import { RagfairServerHelper } from "@spt-aki/helpers/RagfairServerHelper";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { ITemplateItem } from "@spt-aki/models/eft/common/tables/ITemplateItem";
+import { IBarterScheme } from "@spt-aki/models/eft/common/tables/ITrader";
+import { IRagfairOffer, OfferRequirement } from "@spt-aki/models/eft/ragfair/IRagfairOffer";
+import { BaseClasses } from "@spt-aki/models/enums/BaseClasses";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { MemberCategory } from "@spt-aki/models/enums/MemberCategory";
+import { Money } from "@spt-aki/models/enums/Money";
+import { Dynamic, IRagfairConfig } from "@spt-aki/models/spt/config/IRagfairConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { FenceService } from "@spt-aki/services/FenceService";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { RagfairOfferService } from "@spt-aki/services/RagfairOfferService";
+import { RagfairPriceService } from "@spt-aki/services/RagfairPriceService";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
+import { RandomUtil } from "@spt-aki/utils/RandomUtil";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class RagfairOfferGenerator
 {
     protected ragfairConfig: IRagfairConfig;
     protected allowedFleaPriceItemsForBarter: { tpl: string; price: number; }[];
+
+    /** Internal counter to ensure each offer created has a unique value for its intId property */
+    protected offerCounter = 0;
 
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
@@ -51,10 +53,9 @@ export class RagfairOfferGenerator
         @inject("RagfairPriceService") protected ragfairPriceService: RagfairPriceService,
         @inject("LocalisationService") protected localisationService: LocalisationService,
         @inject("PaymentHelper") protected paymentHelper: PaymentHelper,
-        @inject("RagfairCategoriesService") protected ragfairCategoriesService: RagfairCategoriesService,
         @inject("FenceService") protected fenceService: FenceService,
         @inject("ItemHelper") protected itemHelper: ItemHelper,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.ragfairConfig = this.configServer.getConfig(ConfigTypes.RAGFAIR);
@@ -67,13 +68,19 @@ export class RagfairOfferGenerator
      * @param items Items in the offer
      * @param barterScheme Cost of item (currency or barter)
      * @param loyalLevel Loyalty level needed to buy item
-     * @param price Price of offer
-     * @param sellInOnePiece Set StackObjectsCount to 1
+     * @param sellInOnePiece Flags sellInOnePiece to be true
      * @returns IRagfairOffer
      */
-    public createFleaOffer(userID: string, time: number, items: Item[], barterScheme: IBarterScheme[], loyalLevel: number, price: number, sellInOnePiece = false): IRagfairOffer
+    public createFleaOffer(
+        userID: string,
+        time: number,
+        items: Item[],
+        barterScheme: IBarterScheme[],
+        loyalLevel: number,
+        sellInOnePiece = false,
+    ): IRagfairOffer
     {
-        const offer = this.createOffer(userID, time, items, barterScheme, loyalLevel, price, sellInOnePiece);
+        const offer = this.createOffer(userID, time, items, barterScheme, loyalLevel, sellInOnePiece);
         this.ragfairOfferService.addOffer(offer);
 
         return offer;
@@ -86,11 +93,17 @@ export class RagfairOfferGenerator
      * @param items Items in the offer
      * @param barterScheme Cost of item (currency or barter)
      * @param loyalLevel Loyalty level needed to buy item
-     * @param price Price of offer
      * @param sellInOnePiece Set StackObjectsCount to 1
      * @returns IRagfairOffer
      */
-    protected createOffer(userID: string, time: number, items: Item[], barterScheme: IBarterScheme[], loyalLevel: number, price: number, sellInOnePiece = false): IRagfairOffer
+    protected createOffer(
+        userID: string,
+        time: number,
+        items: Item[],
+        barterScheme: IBarterScheme[],
+        loyalLevel: number,
+        sellInOnePiece = false,
+    ): IRagfairOffer
     {
         const isTrader = this.ragfairServerHelper.isTrader(userID);
 
@@ -99,18 +112,19 @@ export class RagfairOfferGenerator
         {
             const requirement: OfferRequirement = {
                 _tpl: barter._tpl,
-                count: barter.count,
-                onlyFunctional: barter.onlyFunctional ?? false
+                count: +barter.count.toFixed(2),
+                onlyFunctional: barter.onlyFunctional ?? false,
             };
 
             offerRequirements.push(requirement);
         }
 
-        const roublePrice = Math.round(this.calculateOfferListingPrice(offerRequirements));
+        const itemCount = items.filter((x) => x.slotId === "hideout").length;
+        const roublePrice = Math.round(this.convertOfferRequirementsIntoRoubles(offerRequirements));
 
         const offer: IRagfairOffer = {
-            _id: (isTrader) ? items[0]._id : this.hashUtil.generate(),
-            intId: 0,
+            _id: this.hashUtil.generate(),
+            intId: this.offerCounter,
             user: {
                 id: this.getTraderId(userID),
                 memberType: (userID === "ragfair")
@@ -119,13 +133,13 @@ export class RagfairOfferGenerator
                 nickname: this.ragfairServerHelper.getNickname(userID),
                 rating: this.getRating(userID),
                 isRatingGrowing: this.getRatingGrowing(userID),
-                avatar: this.getAvatarUrl(isTrader, userID)
+                avatar: this.getAvatarUrl(isTrader, userID),
             },
             root: items[0]._id,
             items: this.jsonUtil.clone(items),
             requirements: offerRequirements,
             requirementsCost: roublePrice,
-            itemsCost: Math.round(this.handbookHelper.getTemplatePrice(items[0]._tpl)), // handbook price
+            itemsCost: Math.round(this.handbookHelper.getTemplatePrice(items[0]._tpl)), // Handbook price
             summaryCost: roublePrice,
             startTime: time,
             endTime: this.getOfferEndTime(userID, time),
@@ -135,8 +149,10 @@ export class RagfairOfferGenerator
             locked: false,
             unlimitedCount: false,
             notAvailable: false,
-            CurrentItemCount: 0
+            CurrentItemCount: itemCount,
         };
+
+        this.offerCounter++;
 
         return offer;
     }
@@ -146,7 +162,7 @@ export class RagfairOfferGenerator
      * @param offerRequirements barter requirements for offer
      * @returns rouble cost of offer
      */
-    protected calculateOfferListingPrice(offerRequirements: OfferRequirement[]): number
+    protected convertOfferRequirementsIntoRoubles(offerRequirements: OfferRequirement[]): number
     {
         let roublePrice = 0;
         for (const requirement of offerRequirements)
@@ -250,7 +266,7 @@ export class RagfairOfferGenerator
             return true;
         }
 
-        // generated offer 
+        // generated offer
         // 50/50 growing/falling
         return this.randomUtil.getBool();
     }
@@ -265,8 +281,9 @@ export class RagfairOfferGenerator
     {
         if (this.ragfairServerHelper.isPlayer(userID))
         {
-            // Player offer
-            return this.timeUtil.getTimestamp() + Math.round(12 * TimeUtil.oneHourAsSeconds);
+            // Player offer = current time + offerDurationTimeInHour;
+            const offerDurationTimeHours = this.databaseServer.getTables().globals.config.RagFair.offerDurationTimeInHour;
+            return this.timeUtil.getTimestamp() + Math.round(offerDurationTimeHours * TimeUtil.oneHourAsSeconds);
         }
 
         if (this.ragfairServerHelper.isTrader(userID))
@@ -276,7 +293,13 @@ export class RagfairOfferGenerator
         }
 
         // Generated fake-player offer
-        return Math.round(time + this.randomUtil.getInt(this.ragfairConfig.dynamic.endTimeSeconds.min, this.ragfairConfig.dynamic.endTimeSeconds.max));
+        return Math.round(
+            time
+                + this.randomUtil.getInt(
+                    this.ragfairConfig.dynamic.endTimeSeconds.min,
+                    this.ragfairConfig.dynamic.endTimeSeconds.max,
+                ),
+        );
     }
 
     /**
@@ -288,7 +311,7 @@ export class RagfairOfferGenerator
         const config = this.ragfairConfig.dynamic;
 
         // get assort items from param if they exist, otherwise grab freshly generated assorts
-        const assortItemsToProcess: Item[] = (expiredOffers)
+        const assortItemsToProcess: Item[] = expiredOffers
             ? expiredOffers
             : this.ragfairAssortGenerator.getAssortItems();
 
@@ -296,20 +319,26 @@ export class RagfairOfferGenerator
         const assorOffersForItemsProcesses = [];
         for (const assortItemIndex in assortItemsToProcess)
         {
-            assorOffersForItemsProcesses.push(this.createOffersForItems(assortItemIndex, assortItemsToProcess, expiredOffers, config));
+            assorOffersForItemsProcesses.push(
+                this.createOffersForItems(assortItemIndex, assortItemsToProcess, expiredOffers, config),
+            );
         }
 
         await Promise.all(assorOffersForItemsProcesses);
     }
 
     /**
-     * 
      * @param assortItemIndex Index of assort item
      * @param assortItemsToProcess Item array containing index
      * @param expiredOffers Currently expired offers on flea
      * @param config Ragfair dynamic config
      */
-    protected async createOffersForItems(assortItemIndex: string, assortItemsToProcess: Item[], expiredOffers: Item[], config: Dynamic): Promise<void>
+    protected async createOffersForItems(
+        assortItemIndex: string,
+        assortItemsToProcess: Item[],
+        expiredOffers: Item[],
+        config: Dynamic,
+    ): Promise<void>
     {
         const assortItem = assortItemsToProcess[assortItemIndex];
         const itemDetails = this.itemHelper.getItem(assortItem._tpl);
@@ -323,13 +352,19 @@ export class RagfairOfferGenerator
         }
 
         // Get item + sub-items if preset, otherwise just get item
-        const items: Item[] = (isPreset)
+        const items: Item[] = isPreset
             ? this.ragfairServerHelper.getPresetItems(assortItem)
-            : [...[assortItem], ...this.itemHelper.findAndReturnChildrenByAssort(assortItem._id, this.ragfairAssortGenerator.getAssortItems())];
+            : [
+                ...[assortItem],
+                ...this.itemHelper.findAndReturnChildrenByAssort(
+                    assortItem._id,
+                    this.ragfairAssortGenerator.getAssortItems(),
+                ),
+            ];
 
         // Get number of offers to create
         // Limit to 1 offer when processing expired
-        const offerCount = (expiredOffers)
+        const offerCount = expiredOffers
             ? 1
             : Math.round(this.randomUtil.getInt(config.offerItemCount.min, config.offerItemCount.max));
 
@@ -343,7 +378,6 @@ export class RagfairOfferGenerator
         await Promise.all(assortSingleOfferProcesses);
     }
 
-
     /**
      * Create one flea offer for a specific item
      * @param items Item to create offer for
@@ -351,31 +385,56 @@ export class RagfairOfferGenerator
      * @param itemDetails raw db item details
      * @returns Item array
      */
-    protected async createSingleOfferForItem(items: Item[], isPreset: boolean, itemDetails: [boolean, ITemplateItem]): Promise<Item[]>
+    protected async createSingleOfferForItem(
+        items: Item[],
+        isPreset: boolean,
+        itemDetails: [boolean, ITemplateItem],
+    ): Promise<void>
     {
+        // Set stack size to random value
         items[0].upd.StackObjectsCount = this.ragfairServerHelper.calculateDynamicStackCount(items[0]._tpl, isPreset);
+
         const isBarterOffer = this.randomUtil.getChance100(this.ragfairConfig.dynamic.barter.chancePercent);
+        const isPackOffer = this.randomUtil.getChance100(this.ragfairConfig.dynamic.pack.chancePercent)
+            && !isBarterOffer
+            && items.length === 1
+            && this.itemHelper.isOfBaseclasses(items[0]._tpl, this.ragfairConfig.dynamic.pack.itemTypeWhitelist);
+        const randomUserId = this.hashUtil.generate();
 
-        const userID = this.hashUtil.generate();
+        let barterScheme: IBarterScheme[];
+        if (isPackOffer)
+        {
+            // Set pack size
+            const stackSize = this.randomUtil.getInt(
+                this.ragfairConfig.dynamic.pack.itemCountMin,
+                this.ragfairConfig.dynamic.pack.itemCountMax,
+            );
+            items[0].upd.StackObjectsCount = stackSize;
 
-        // Get properties
-        items = this.getItemCondition(userID, items, itemDetails[1]);
-        const barterScheme = isBarterOffer
-            ? this.createBarterRequirement(items)
-            : this.createCurrencyRequirement(items);
-        const price = this.ragfairPriceService.getBarterPrice(barterScheme);
+            // Don't randomise pack items
+            barterScheme = this.createCurrencyBarterScheme(items, isPackOffer, stackSize);
+        }
+        else if (isBarterOffer)
+        {
+            // Apply randomised properties
+            items = this.randomiseItemUpdProperties(randomUserId, items, itemDetails[1]);
+            barterScheme = this.createBarterBarterScheme(items);
+        }
+        else
+        {
+            // Apply randomised properties
+            items = this.randomiseItemUpdProperties(randomUserId, items, itemDetails[1]);
+            barterScheme = this.createCurrencyBarterScheme(items, isPackOffer);
+        }
 
         const offer = this.createFleaOffer(
-            userID,
+            randomUserId,
             this.timeUtil.getTimestamp(),
             items,
             barterScheme,
             1,
-            price,
-            isPreset); // sellAsOnePiece
-
-        this.ragfairCategoriesService.incrementCategory(offer);
-        return items;
+            isPreset || isPackOffer,
+        ); // sellAsOnePiece
     }
 
     /**
@@ -395,19 +454,25 @@ export class RagfairOfferGenerator
         // Trader assorts / assort items are missing
         if (!assorts?.items?.length)
         {
-            this.logger.error(this.localisationService.getText("ragfair-no_trader_assorts_cant_generate_flea_offers", trader.base.nickname));
+            this.logger.error(
+                this.localisationService.getText(
+                    "ragfair-no_trader_assorts_cant_generate_flea_offers",
+                    trader.base.nickname,
+                ),
+            );
             return;
         }
 
         for (const item of assorts.items)
         {
+            // We only want to process 'base' items, no children
             if (item.slotId !== "hideout")
             {
                 // skip mod items
                 continue;
             }
 
-            // run blacklist check on trader offers
+            // Run blacklist check on trader offers
             if (this.ragfairConfig.dynamic.blacklist.traderItems)
             {
                 const itemDetails = this.itemHelper.getItem(item._tpl);
@@ -425,24 +490,27 @@ export class RagfairOfferGenerator
             }
 
             const isPreset = this.presetHelper.isPreset(item._id);
-            const items: Item[] = (isPreset)
+            const items: Item[] = isPreset
                 ? this.ragfairServerHelper.getPresetItems(item)
                 : [...[item], ...this.itemHelper.findAndReturnChildrenByAssort(item._id, assorts.items)];
 
             const barterScheme = assorts.barter_scheme[item._id];
             if (!barterScheme)
             {
-                this.logger.warning(this.localisationService.getText("ragfair-missing_barter_scheme", {itemId: item._id, tpl: item._tpl, name: trader.base.nickname}));
+                this.logger.warning(
+                    this.localisationService.getText("ragfair-missing_barter_scheme", {
+                        itemId: item._id,
+                        tpl: item._tpl,
+                        name: trader.base.nickname,
+                    }),
+                );
                 continue;
             }
 
             const barterSchemeItems = assorts.barter_scheme[item._id][0];
             const loyalLevel = assorts.loyal_level_items[item._id];
-            const price = this.ragfairPriceService.getBarterPrice(barterSchemeItems);
 
-            const offer = this.createFleaOffer(traderID, time, items, barterSchemeItems, loyalLevel, price);
-
-            this.ragfairCategoriesService.incrementCategory(offer);
+            const offer = this.createFleaOffer(traderID, time, items, barterSchemeItems, loyalLevel, false);
 
             // Refresh complete, reset flag to false
             trader.base.refreshTraderRagfairOffers = false;
@@ -455,11 +523,11 @@ export class RagfairOfferGenerator
      * @param userID id of owner of item
      * @param itemWithMods Item and mods, get condition of first item (only first array item is used)
      * @param itemDetails db details of first item
-     * @returns 
+     * @returns
      */
-    protected getItemCondition(userID: string, itemWithMods: Item[], itemDetails: ITemplateItem): Item[]
+    protected randomiseItemUpdProperties(userID: string, itemWithMods: Item[], itemDetails: ITemplateItem): Item[]
     {
-        // Add any missing properties to first item in array 
+        // Add any missing properties to first item in array
         itemWithMods[0] = this.addMissingConditions(itemWithMods[0]);
 
         if (!(this.ragfairServerHelper.isPlayer(userID) || this.ragfairServerHelper.isTrader(userID)))
@@ -490,9 +558,9 @@ export class RagfairOfferGenerator
     {
         // Get keys from condition config dictionary
         const configConditions = Object.keys(this.ragfairConfig.dynamic.condition);
-        for (const baseClass of configConditions) 
+        for (const baseClass of configConditions)
         {
-            if (this.itemHelper.isOfBaseclass(tpl, baseClass)) 
+            if (this.itemHelper.isOfBaseclass(tpl, baseClass))
             {
                 return baseClass;
             }
@@ -509,10 +577,13 @@ export class RagfairOfferGenerator
      */
     protected randomiseItemCondition(conditionSettingsId: string, item: Item, itemDetails: ITemplateItem): void
     {
-        const multiplier = this.randomUtil.getFloat(this.ragfairConfig.dynamic.condition[conditionSettingsId].min, this.ragfairConfig.dynamic.condition[conditionSettingsId].max);
+        const multiplier = this.randomUtil.getFloat(
+            this.ragfairConfig.dynamic.condition[conditionSettingsId].min,
+            this.ragfairConfig.dynamic.condition[conditionSettingsId].max,
+        );
 
         // Armor or weapons
-        if ("Repairable" in item.upd)
+        if (item.upd.Repairable)
         {
             // Randomise non-0 class armor
             if (itemDetails._props.armorClass && <number>itemDetails._props.armorClass >= 1)
@@ -525,30 +596,47 @@ export class RagfairOfferGenerator
             {
                 this.randomiseDurabilityValues(item, multiplier);
             }
+
+            return;
         }
 
-        if ("MedKit" in item.upd)
+        if (item.upd.MedKit)
         {
             // randomize health
             item.upd.MedKit.HpResource = Math.round(item.upd.MedKit.HpResource * multiplier) || 1;
+
+            return;
         }
 
-        if ("Key" in item.upd && itemDetails._props.MaximumNumberOfUsage > 1)
+        if (item.upd.Key && itemDetails._props.MaximumNumberOfUsage > 1)
         {
             // randomize key uses
             item.upd.Key.NumberOfUsages = Math.round(itemDetails._props.MaximumNumberOfUsage * (1 - multiplier)) || 0;
+
+            return;
         }
 
-        if ("FoodDrink" in item.upd)
+        if (item.upd.FoodDrink)
         {
             // randomize food/drink value
             item.upd.FoodDrink.HpPercent = Math.round(itemDetails._props.MaxResource * multiplier) || 1;
+
+            return;
         }
 
-        if ("RepairKit" in item.upd) 
+        if (item.upd.RepairKit)
         {
             // randomize repair kit (armor/weapon) uses
             item.upd.RepairKit.Resource = Math.round(itemDetails._props.MaxRepairResource * multiplier) || 1;
+
+            return;
+        }
+
+        if (this.itemHelper.isOfBaseclass(itemDetails._id, BaseClasses.FUEL))
+        {
+            const totalCapacity = itemDetails._props.MaxResource;
+            const remainingFuel = Math.round(totalCapacity * multiplier);
+            item.upd.Resource = { UnitsConsumed: totalCapacity - remainingFuel, Value: remainingFuel };
         }
     }
 
@@ -562,7 +650,10 @@ export class RagfairOfferGenerator
         item.upd.Repairable.Durability = Math.round(item.upd.Repairable.Durability * multiplier) || 1;
 
         // randomize max durability, store to a temporary value so we can still compare the max durability
-        let tempMaxDurability = Math.round(this.randomUtil.getFloat(item.upd.Repairable.Durability - 5, item.upd.Repairable.MaxDurability + 5)) || item.upd.Repairable.Durability;
+        let tempMaxDurability =
+            Math.round(
+                this.randomUtil.getFloat(item.upd.Repairable.Durability - 5, item.upd.Repairable.MaxDurability + 5),
+            ) || item.upd.Repairable.Durability;
 
         // clamp values to max/current
         if (tempMaxDurability >= item.upd.Repairable.MaxDurability)
@@ -588,46 +679,35 @@ export class RagfairOfferGenerator
     protected addMissingConditions(item: Item): Item
     {
         const props = this.itemHelper.getItem(item._tpl)[1]._props;
-        const isRepairable = ("Durability" in props);
-        const isMedkit = ("MaxHpResource" in props);
-        const isKey = ("MaximumNumberOfUsage" in props);
-        const isConsumable = (props.MaxResource > 1 && "foodUseTime" in props);
-        const isRepairKit = ("MaxRepairResource" in props);
+        const isRepairable = "Durability" in props;
+        const isMedkit = "MaxHpResource" in props;
+        const isKey = "MaximumNumberOfUsage" in props;
+        const isConsumable = props.MaxResource > 1 && "foodUseTime" in props;
+        const isRepairKit = "MaxRepairResource" in props;
 
         if (isRepairable && props.Durability > 0)
         {
-            item.upd.Repairable = {
-                "Durability": props.Durability,
-                "MaxDurability": props.Durability
-            };
+            item.upd.Repairable = { Durability: props.Durability, MaxDurability: props.Durability };
         }
 
         if (isMedkit && props.MaxHpResource > 0)
         {
-            item.upd.MedKit = {
-                "HpResource": props.MaxHpResource
-            };
+            item.upd.MedKit = { HpResource: props.MaxHpResource };
         }
 
-        if (isKey) 
+        if (isKey)
         {
-            item.upd.Key = {
-                "NumberOfUsages": 0
-            };
+            item.upd.Key = { NumberOfUsages: 0 };
         }
 
-        if (isConsumable) 
+        if (isConsumable)
         {
-            item.upd.FoodDrink = {
-                "HpPercent": props.MaxResource
-            };
+            item.upd.FoodDrink = { HpPercent: props.MaxResource };
         }
 
-        if (isRepairKit) 
+        if (isRepairKit)
         {
-            item.upd.RepairKit = {
-                "Resource": props.MaxRepairResource
-            };
+            item.upd.RepairKit = { Resource: props.MaxRepairResource };
         }
 
         return item;
@@ -638,19 +718,26 @@ export class RagfairOfferGenerator
      * @param offerItems Items for sale in offer
      * @returns Barter scheme
      */
-    protected createBarterRequirement(offerItems: Item[]): IBarterScheme[]
+    protected createBarterBarterScheme(offerItems: Item[]): IBarterScheme[]
     {
-        // get flea price of item bein sold
-        const priceOfItemOffer = this.ragfairPriceService.getDynamicOfferPrice(offerItems, Money.ROUBLES);
+        // get flea price of item being sold
+        const priceOfItemOffer = this.ragfairPriceService.getDynamicOfferPriceForOffer(
+            offerItems,
+            Money.ROUBLES,
+            false,
+        );
 
         // Dont make items under a designated rouble value into barter offers
         if (priceOfItemOffer < this.ragfairConfig.dynamic.barter.minRoubleCostToBecomeBarter)
         {
-            return this.createCurrencyRequirement(offerItems);
+            return this.createCurrencyBarterScheme(offerItems, false);
         }
 
         // Get a randomised number of barter items to list offer for
-        const barterItemCount = this.randomUtil.getInt(this.ragfairConfig.dynamic.barter.itemCountMin, this.ragfairConfig.dynamic.barter.itemCountMax);
+        const barterItemCount = this.randomUtil.getInt(
+            this.ragfairConfig.dynamic.barter.itemCountMin,
+            this.ragfairConfig.dynamic.barter.itemCountMax,
+        );
 
         // Get desired cost of individual item offer will be listed for e.g. offer = 15k, item count = 3, desired item cost = 5k
         const desiredItemCost = Math.round(priceOfItemOffer / barterItemCount);
@@ -661,23 +748,21 @@ export class RagfairOfferGenerator
         const fleaPrices = this.getFleaPricesAsArray();
 
         // Filter possible barters to items that match the price range + not itself
-        const filtered = fleaPrices.filter(x => x.price >= desiredItemCost - offerCostVariance && x.price <= desiredItemCost + offerCostVariance && x.tpl !== offerItems[0]._tpl);
+        const filtered = fleaPrices.filter((x) =>
+            x.price >= desiredItemCost - offerCostVariance && x.price <= desiredItemCost + offerCostVariance
+            && x.tpl !== offerItems[0]._tpl
+        );
 
         // No items on flea have a matching price, fall back to currency
         if (filtered.length === 0)
         {
-            return this.createCurrencyRequirement(offerItems);
+            return this.createCurrencyBarterScheme(offerItems, false);
         }
 
         // Choose random item from price-filtered flea items
         const randomItem = this.randomUtil.getArrayValue(filtered);
 
-        return [
-            {
-                count: barterItemCount,
-                _tpl: randomItem.tpl
-            }
-        ];
+        return [{ count: barterItemCount, _tpl: randomItem.tpl }];
     }
 
     /**
@@ -693,9 +778,11 @@ export class RagfairOfferGenerator
             const fleaArray = Object.entries(fleaPrices).map(([tpl, price]) => ({ tpl: tpl, price: price }));
 
             // Only get item prices for items that also exist in items.json
-            const filteredItems = fleaArray.filter(x => this.itemHelper.getItem(x.tpl)[0]);
+            const filteredItems = fleaArray.filter((x) => this.itemHelper.getItem(x.tpl)[0]);
 
-            this.allowedFleaPriceItemsForBarter = filteredItems.filter(x => !this.itemHelper.isOfBaseclasses(x.tpl, this.ragfairConfig.dynamic.barter.itemTypeBlacklist));
+            this.allowedFleaPriceItemsForBarter = filteredItems.filter((x) =>
+                !this.itemHelper.isOfBaseclasses(x.tpl, this.ragfairConfig.dynamic.barter.itemTypeBlacklist)
+            );
         }
 
         return this.allowedFleaPriceItemsForBarter;
@@ -704,18 +791,16 @@ export class RagfairOfferGenerator
     /**
      * Create a random currency-based barter scheme for an array of items
      * @param offerItems Items on offer
+     * @param isPackOffer Is the barter scheme being created for a pack offer
+     * @param multipler What to multiply the resulting price by
      * @returns Barter scheme for offer
      */
-    protected createCurrencyRequirement(offerItems: Item[]): IBarterScheme[]
+    protected createCurrencyBarterScheme(offerItems: Item[], isPackOffer: boolean, multipler = 1): IBarterScheme[]
     {
         const currency = this.ragfairServerHelper.getDynamicOfferCurrency();
-        const price = this.ragfairPriceService.getDynamicOfferPrice(offerItems, currency);
+        const price = this.ragfairPriceService.getDynamicOfferPriceForOffer(offerItems, currency, isPackOffer)
+            * multipler;
 
-        return [
-            {
-                count: price,
-                _tpl: currency
-            }
-        ];
+        return [{ count: price, _tpl: currency }];
     }
 }

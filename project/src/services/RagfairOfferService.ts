@@ -1,22 +1,21 @@
 import { inject, injectable } from "tsyringe";
 
-import { ProfileHelper } from "../helpers/ProfileHelper";
-import { RagfairServerHelper } from "../helpers/RagfairServerHelper";
-import { Item } from "../models/eft/common/tables/IItem";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { IRagfairOffer } from "../models/eft/ragfair/IRagfairOffer";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { IRagfairConfig } from "../models/spt/config/IRagfairConfig";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { EventOutputHolder } from "../routers/EventOutputHolder";
-import { ConfigServer } from "../servers/ConfigServer";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { SaveServer } from "../servers/SaveServer";
-import { HttpResponseUtil } from "../utils/HttpResponseUtil";
-import { RagfairOfferHolder } from "../utils/RagfairOfferHolder";
-import { TimeUtil } from "../utils/TimeUtil";
-import { LocalisationService } from "./LocalisationService";
-import { RagfairCategoriesService } from "./RagfairCategoriesService";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { RagfairServerHelper } from "@spt-aki/helpers/RagfairServerHelper";
+import { Item } from "@spt-aki/models/eft/common/tables/IItem";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { IRagfairOffer } from "@spt-aki/models/eft/ragfair/IRagfairOffer";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { IRagfairConfig } from "@spt-aki/models/spt/config/IRagfairConfig";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { EventOutputHolder } from "@spt-aki/routers/EventOutputHolder";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { SaveServer } from "@spt-aki/servers/SaveServer";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { HttpResponseUtil } from "@spt-aki/utils/HttpResponseUtil";
+import { RagfairOfferHolder } from "@spt-aki/utils/RagfairOfferHolder";
+import { TimeUtil } from "@spt-aki/utils/TimeUtil";
 
 @injectable()
 export class RagfairOfferService
@@ -33,12 +32,11 @@ export class RagfairOfferService
         @inject("DatabaseServer") protected databaseServer: DatabaseServer,
         @inject("SaveServer") protected saveServer: SaveServer,
         @inject("RagfairServerHelper") protected ragfairServerHelper: RagfairServerHelper,
-        @inject("RagfairCategoriesService") protected ragfairCategoriesService: RagfairCategoriesService,
         @inject("ProfileHelper") protected profileHelper: ProfileHelper,
         @inject("EventOutputHolder") protected eventOutputHolder: EventOutputHolder,
         @inject("HttpResponseUtil") protected httpResponse: HttpResponseUtil,
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.ragfairConfig = this.configServer.getConfig(ConfigTypes.RAGFAIR);
@@ -113,12 +111,14 @@ export class RagfairOfferService
      * Remove an offer from ragfair by offer id
      * @param offerId Offer id to remove
      */
-    public removeOfferById(offerId: string): void 
+    public removeOfferById(offerId: string): void
     {
         const offer = this.ragfairOfferHandler.getOfferById(offerId);
         if (!offer)
         {
-            this.logger.warning(this.localisationService.getText("ragfair-unable_to_remove_offer_doesnt_exist", offerId));
+            this.logger.warning(
+                this.localisationService.getText("ragfair-unable_to_remove_offer_doesnt_exist", offerId),
+            );
 
             return;
         }
@@ -171,13 +171,13 @@ export class RagfairOfferService
             for (const sessionID in this.saveServer.getProfiles())
             {
                 const pmcData = this.saveServer.getProfile(sessionID).characters.pmc;
-                
+
                 if (pmcData.RagfairInfo === undefined || pmcData.RagfairInfo.offers === undefined)
                 {
                     // Profile is wiped
                     continue;
                 }
-                
+
                 this.ragfairOfferHandler.addOffers(pmcData.RagfairInfo.offers);
             }
             this.playerOffersLoaded = true;
@@ -187,9 +187,7 @@ export class RagfairOfferService
     public expireStaleOffers(): void
     {
         const time = this.timeUtil.getTimestamp();
-        this.ragfairOfferHandler
-            .getStaleOffers(time)
-            .forEach(o => this.processStaleOffer(o));
+        this.ragfairOfferHandler.getStaleOffers(time).forEach((o) => this.processStaleOffer(o));
     }
 
     /**
@@ -222,9 +220,6 @@ export class RagfairOfferService
             this.returnPlayerOffer(staleOffer);
         }
 
-        // Reduce category count by 1 as offer is now stale and about to be removed
-        this.ragfairCategoriesService.decrementCategory(staleOffer);
-
         // Remove expired existing offer from global offers
         this.removeOfferById(staleOffer._id);
     }
@@ -233,25 +228,31 @@ export class RagfairOfferService
     {
         const pmcID = String(offer.user.id);
         const profile = this.profileHelper.getProfileByPmcId(pmcID);
-        const sessionID = profile.aid;
-        const offerIndex = profile.RagfairInfo.offers.findIndex(o => o._id === offer._id);
-
-        profile.RagfairInfo.rating -= this.ragfairConfig.sell.reputation.loss;
-        profile.RagfairInfo.isRatingGrowing = false;
+        const sessionID = profile.sessionId;
+        const offerIndex = profile.RagfairInfo.offers.findIndex((o) => o._id === offer._id);
 
         if (offerIndex === -1)
         {
             this.logger.warning(this.localisationService.getText("ragfair-unable_to_find_offer_to_remove", offer._id));
-            return this.httpResponse.appendErrorToOutput(this.eventOutputHolder.getOutput(sessionID), this.localisationService.getText("ragfair-offer_not_found_in_profile_short"));
+            return this.httpResponse.appendErrorToOutput(
+                this.eventOutputHolder.getOutput(sessionID),
+                this.localisationService.getText("ragfair-offer_not_found_in_profile_short"),
+            );
         }
 
-        if (offer.items[0].upd.StackObjectsCount > offer.items[0].upd.OriginalStackObjectsCount)
+        // Reduce player ragfair rep
+        profile.RagfairInfo.rating -= this.databaseServer.getTables().globals.config.RagFair.ratingDecreaseCount;
+        profile.RagfairInfo.isRatingGrowing = false;
+
+        const firstOfferItem = offer.items[0];
+        if (firstOfferItem.upd.StackObjectsCount > firstOfferItem.upd.OriginalStackObjectsCount)
         {
-            offer.items[0].upd.StackObjectsCount = offer.items[0].upd.OriginalStackObjectsCount;
+            offer.items[0].upd.StackObjectsCount = firstOfferItem.upd.OriginalStackObjectsCount;
         }
         delete offer.items[0].upd.OriginalStackObjectsCount;
 
-        this.ragfairServerHelper.returnItems(profile.aid, offer.items);
+        // Send failed offer items to player in mail
+        this.ragfairServerHelper.returnItems(profile.sessionId, offer.items);
         profile.RagfairInfo.offers.splice(offerIndex, 1);
 
         return this.eventOutputHolder.getOutput(sessionID);

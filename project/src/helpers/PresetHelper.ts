@@ -1,7 +1,8 @@
 import { inject, injectable } from "tsyringe";
-import { IPreset } from "../models/eft/common/IGlobals";
-import { DatabaseServer } from "../servers/DatabaseServer";
-import { JsonUtil } from "../utils/JsonUtil";
+
+import { IPreset } from "@spt-aki/models/eft/common/IGlobals";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class PresetHelper
@@ -11,9 +12,9 @@ export class PresetHelper
 
     constructor(
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
-        @inject("DatabaseServer") protected databaseServer: DatabaseServer
+        @inject("DatabaseServer") protected databaseServer: DatabaseServer,
     )
-    { }
+    {}
 
     public hydratePresetStore(input: Record<string, string[]>): void
     {
@@ -24,13 +25,13 @@ export class PresetHelper
     {
         if (!this.defaultPresets)
         {
-            this.defaultPresets = Object.values(this.databaseServer.getTables().globals.ItemPresets)
-                .filter(x => x._encyclopedia !== undefined)
-                .reduce((acc, cur) =>
-                {
-                    acc[cur._id] = cur;
-                    return acc;
-                }, {});
+            this.defaultPresets = Object.values(this.databaseServer.getTables().globals.ItemPresets).filter((x) =>
+                x._encyclopedia !== undefined
+            ).reduce((acc, cur) =>
+            {
+                acc[cur._id] = cur;
+                return acc;
+            }, {});
         }
 
         return this.defaultPresets;

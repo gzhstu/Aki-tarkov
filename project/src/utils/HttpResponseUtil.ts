@@ -1,54 +1,56 @@
 import { inject, injectable } from "tsyringe";
 
-import { IGetBodyResponseData } from "../models/eft/httpResponse/IGetBodyResponseData";
-import { INullResponseData } from "../models/eft/httpResponse/INullResponseData";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { BackendErrorCodes } from "../models/enums/BackendErrorCodes";
-import { LocalisationService } from "../services/LocalisationService";
-import { JsonUtil } from "./JsonUtil";
+import { IGetBodyResponseData } from "@spt-aki/models/eft/httpResponse/IGetBodyResponseData";
+import { INullResponseData } from "@spt-aki/models/eft/httpResponse/INullResponseData";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { BackendErrorCodes } from "@spt-aki/models/enums/BackendErrorCodes";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class HttpResponseUtil
 {
-
     constructor(
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
-        @inject("LocalisationService") protected localisationService: LocalisationService
+        @inject("LocalisationService") protected localisationService: LocalisationService,
     )
-    { }
+    {}
 
     protected clearString(s: string): any
     {
-        return s.replace(/[\b]/g, "")
-            .replace(/[\f]/g, "")
-            .replace(/[\n]/g, "")
-            .replace(/[\r]/g, "")
-            .replace(/[\t]/g, "")
-            .replace(/[\\]/g, "");
+        return s.replace(/[\b]/g, "").replace(/[\f]/g, "").replace(/[\n]/g, "").replace(/[\r]/g, "").replace(
+            /[\t]/g,
+            "",
+        ).replace(/[\\]/g, "");
     }
 
     /**
      * Return passed in data as JSON string
-     * @param data 
-     * @returns 
+     * @param data
+     * @returns
      */
     public noBody(data: any): any
     {
         return this.clearString(this.jsonUtil.serialize(data));
     }
 
-    public getBody<T>(data: T, err = 0, errmsg = null): IGetBodyResponseData<T>
+    /**
+     * Game client needs server responses in a particular format
+     * @param data
+     * @param err
+     * @param errmsg
+     * @returns
+     */
+    public getBody<T>(data: T, err = 0, errmsg = null, sanitize = true): IGetBodyResponseData<T>
     {
-        return this.clearString(this.getUnclearedBody(data, err, errmsg));
+        return sanitize
+            ? this.clearString(this.getUnclearedBody(data, err, errmsg))
+            : (this.getUnclearedBody(data, err, errmsg) as any);
     }
 
     public getUnclearedBody(data: any, err = 0, errmsg = null): string
     {
-        return this.jsonUtil.serialize({
-            err: err,
-            errmsg: errmsg,
-            data: data
-        });
+        return this.jsonUtil.serialize({ err: err, errmsg: errmsg, data: data });
     }
 
     public emptyResponse(): IGetBodyResponseData<string>
@@ -66,13 +68,13 @@ export class HttpResponseUtil
         return this.getBody([]);
     }
 
-    public appendErrorToOutput(output: IItemEventRouterResponse, message = this.localisationService.getText("http-unknown_error"), errorCode = BackendErrorCodes.NONE): IItemEventRouterResponse
+    public appendErrorToOutput(
+        output: IItemEventRouterResponse,
+        message = this.localisationService.getText("http-unknown_error"),
+        errorCode = BackendErrorCodes.NONE,
+    ): IItemEventRouterResponse
     {
-        output.warnings = [{
-            index: 0,
-            errmsg: message,
-            code: errorCode.toString()
-        }];
+        output.warnings = [{ index: 0, errmsg: message, code: errorCode.toString() }];
 
         return output;
     }

@@ -1,23 +1,23 @@
-import { MemberCategory } from "../../../models/enums/MemberCategory";
+import { MemberCategory } from "@spt-aki/models/enums/MemberCategory";
 
 export interface ICurrentGroupResponse
 {
-    squad: any[]
+    squad: ICurrentGroupSquadMember[];
 }
 
 export interface ICurrentGroupSquadMember
 {
-    _id: string
-    aid: string
-    info: ICurrentGroupMemberInfo
-    isLeader: boolean
-    isReady: boolean
+    _id: string;
+    aid: string;
+    info: ICurrentGroupMemberInfo;
+    isLeader: boolean;
+    isReady: boolean;
 }
 
 export interface ICurrentGroupMemberInfo
 {
-    Nickname: string
-    Side: string
-    Level: string
-    MemberCategory: MemberCategory
+    Nickname: string;
+    Side: string;
+    Level: string;
+    MemberCategory: MemberCategory;
 }

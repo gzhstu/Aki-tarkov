@@ -1,32 +1,31 @@
-import { inject, injectable, injectAll } from "tsyringe";
+import { inject, injectAll, injectable } from "tsyringe";
 
-import { ItemEventRouterDefinition } from "../di/Router";
-import { ProfileHelper } from "../helpers/ProfileHelper";
-import { IItemEventRouterRequest } from "../models/eft/itemEvent/IItemEventRouterRequest";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { ILogger } from "../models/spt/utils/ILogger";
-import { LocalisationService } from "../services/LocalisationService";
-import { EventOutputHolder } from "./EventOutputHolder";
+import { ItemEventRouterDefinition } from "@spt-aki/di/Router";
+import { ProfileHelper } from "@spt-aki/helpers/ProfileHelper";
+import { IItemEventRouterRequest } from "@spt-aki/models/eft/itemEvent/IItemEventRouterRequest";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { EventOutputHolder } from "@spt-aki/routers/EventOutputHolder";
+import { LocalisationService } from "@spt-aki/services/LocalisationService";
 
 @injectable()
-export class ItemEventRouter 
+export class ItemEventRouter
 {
     constructor(
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("ProfileHelper") protected profileHelper: ProfileHelper,
         @injectAll("IERouters") protected itemEventRouters: ItemEventRouterDefinition[],
         @inject("LocalisationService") protected localisationService: LocalisationService,
-        @inject("EventOutputHolder") protected eventOutputHolder: EventOutputHolder
-    ) 
-    { }
+        @inject("EventOutputHolder") protected eventOutputHolder: EventOutputHolder,
+    )
+    {}
 
     /**
-     * 
      * @param info Event request
      * @param sessionID Session id
      * @returns Item response
      */
-    public handleEvents(info: IItemEventRouterRequest, sessionID: string): IItemEventRouterResponse 
+    public handleEvents(info: IItemEventRouterRequest, sessionID: string): IItemEventRouterResponse
     {
         this.eventOutputHolder.resetOutput(sessionID);
 
@@ -36,13 +35,13 @@ export class ItemEventRouter
         {
             const pmcData = this.profileHelper.getPmcProfile(sessionID);
 
-            const eventRouter = this.itemEventRouters.find(r => r.canHandle(body.Action));
-            if (eventRouter) 
+            const eventRouter = this.itemEventRouters.find((r) => r.canHandle(body.Action));
+            if (eventRouter)
             {
                 this.logger.debug(`event: ${body.Action}`);
                 result = eventRouter.handleItemEvent(body.Action, pmcData, body, sessionID);
             }
-            else 
+            else
             {
                 this.logger.error(this.localisationService.getText("event-unhandled_event", body.Action));
                 this.logger.writeToLogFile(body);

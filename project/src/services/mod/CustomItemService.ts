@@ -1,14 +1,18 @@
 import { inject, injectable } from "tsyringe";
 
-import { ITemplateItem, Props } from "../../models/eft/common/tables/ITemplateItem";
+import { ItemHelper } from "@spt-aki/helpers/ItemHelper";
+import { ITemplateItem, Props } from "@spt-aki/models/eft/common/tables/ITemplateItem";
 import {
-    CreateItemResult, LocaleDetails, NewItemDetails, NewItemFromCloneDetails
-} from "../../models/spt/mod/NewItemDetails";
-import { IDatabaseTables } from "../../models/spt/server/IDatabaseTables";
-import { ILogger } from "../../models/spt/utils/ILogger";
-import { DatabaseServer } from "../../servers/DatabaseServer";
-import { HashUtil } from "../../utils/HashUtil";
-import { JsonUtil } from "../../utils/JsonUtil";
+    CreateItemResult,
+    LocaleDetails,
+    NewItemDetails,
+    NewItemFromCloneDetails,
+} from "@spt-aki/models/spt/mod/NewItemDetails";
+import { IDatabaseTables } from "@spt-aki/models/spt/server/IDatabaseTables";
+import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
+import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { HashUtil } from "@spt-aki/utils/HashUtil";
+import { JsonUtil } from "@spt-aki/utils/JsonUtil";
 
 @injectable()
 export class CustomItemService
@@ -19,7 +23,8 @@ export class CustomItemService
         @inject("WinstonLogger") protected logger: ILogger,
         @inject("HashUtil") protected hashUtil: HashUtil,
         @inject("JsonUtil") protected jsonUtil: JsonUtil,
-        @inject("DatabaseServer") protected databaseServer: DatabaseServer
+        @inject("DatabaseServer") protected databaseServer: DatabaseServer,
+        @inject("ItemHelper") protected itemHelper: ItemHelper,
     )
     {
         this.tables = this.databaseServer.getTables();
@@ -117,9 +122,7 @@ export class CustomItemService
      */
     protected getOrGenerateIdForItem(newId: string): string
     {
-        return (newId === "")
-            ? this.hashUtil.generate()
-            : newId;
+        return (newId === "") ? this.hashUtil.generate() : newId;
     }
 
     /**
@@ -154,13 +157,7 @@ export class CustomItemService
      */
     protected addToHandbookDb(newItemId: string, parentId: string, priceRoubles: number): void
     {
-        this.tables.templates.handbook.Items.push(
-            {
-                Id: newItemId,
-                ParentId: parentId,
-                Price: priceRoubles
-            }
-        );
+        this.tables.templates.handbook.Items.push({ Id: newItemId, ParentId: parentId, Price: priceRoubles });
     }
 
     /**
@@ -169,7 +166,7 @@ export class CustomItemService
      * e.g.
      * en[0]
      * fr[1]
-     * 
+     *
      * No jp provided, so english will be used as a substitute
      * @param localeDetails key is language, value are the new locale details
      * @param newItemId id of the item being created
@@ -201,5 +198,42 @@ export class CustomItemService
     protected addToFleaPriceDb(newItemId: string, fleaPriceRoubles: number): void
     {
         this.tables.templates.prices[newItemId] = fleaPriceRoubles;
+    }
+
+    /**
+     * Add a custom weapon to PMCs loadout
+     * @param weaponTpl Custom weapon tpl to add to PMCs
+     * @param weaponWeight The weighting for the weapon to be picked vs other weapons
+     * @param weaponSlot The slot the weapon should be added to (e.g. FirstPrimaryWeapon/SecondPrimaryWeapon/Holster)
+     */
+    public addCustomWeaponToPMCs(weaponTpl: string, weaponWeight: number, weaponSlot: string): void
+    {
+        const weapon = this.itemHelper.getItem(weaponTpl);
+        if (!weapon[0])
+        {
+            this.logger.warning(`Unable to add custom weapon ${weaponTpl} to PMCs as it cannot be found in the Item db`);
+
+            return;
+        }
+        const baseWeaponModObject = {};
+
+        // Get all slots weapon has and create a dictionary of them with possible mods that slot into each
+        const weaponSltos = weapon[1]._props.Slots;
+        for (const slot of weaponSltos)
+        {
+            baseWeaponModObject[slot._name] = slot._props.filters[0].Filter;
+        }
+
+        // Get PMCs
+        const usec = this.databaseServer.getTables().bots.types.usec;
+        const bear = this.databaseServer.getTables().bots.types.bear;
+
+        // Add weapon base+mods into bear/usec data
+        usec.inventory.mods[weaponTpl] = baseWeaponModObject;
+        bear.inventory.mods[weaponTpl] = baseWeaponModObject;
+
+        // Add weapon to array of allowed weapons + weighting to be picked
+        usec.inventory.equipment[weaponSlot][weaponTpl] = weaponWeight;
+        bear.inventory.equipment[weaponSlot][weaponTpl] = weaponWeight;
     }
 }

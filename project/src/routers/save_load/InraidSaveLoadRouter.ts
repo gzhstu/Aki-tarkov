@@ -1,31 +1,21 @@
 import { injectable } from "tsyringe";
 
-import { HandledRoute, SaveLoadRouter } from "../../di/Router";
-import { IAkiProfile } from "../../models/eft/profile/IAkiProfile";
+import { HandledRoute, SaveLoadRouter } from "@spt-aki/di/Router";
+import { IAkiProfile } from "@spt-aki/models/eft/profile/IAkiProfile";
 
 @injectable()
-export class InraidSaveLoadRouter extends SaveLoadRouter 
+export class InraidSaveLoadRouter extends SaveLoadRouter
 {
-    constructor() 
+    public override getHandledRoutes(): HandledRoute[]
     {
-        super();
+        return [new HandledRoute("aki-inraid", false)];
     }
 
-    public override getHandledRoutes(): HandledRoute[] 
-    {
-        return [
-            new HandledRoute("aki-inraid", false)
-        ];
-    }
-
-    public override handleLoad(profile: IAkiProfile): IAkiProfile 
+    public override handleLoad(profile: IAkiProfile): IAkiProfile
     {
         if (profile.inraid === undefined)
         {
-            profile.inraid = {
-                location: "none",
-                character: "none"
-            };
+            profile.inraid = { location: "none", character: "none" };
         }
 
         return profile;

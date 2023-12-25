@@ -1,38 +1,25 @@
 import { inject, injectable } from "tsyringe";
 
-import { HideoutController } from "../controllers/HideoutController";
-import { OnUpdate } from "../di/OnUpdate";
-import { IPmcData } from "../models/eft/common/IPmcData";
-import { IHandleQTEEventRequestData } from "../models/eft/hideout/IHandleQTEEventRequestData";
-import {
-    IHideoutContinuousProductionStartRequestData
-} from "../models/eft/hideout/IHideoutContinuousProductionStartRequestData";
-import {
-    IHideoutImproveAreaRequestData
-} from "../models/eft/hideout/IHideoutImproveAreaRequestData";
-import { IHideoutPutItemInRequestData } from "../models/eft/hideout/IHideoutPutItemInRequestData";
-import {
-    IHideoutScavCaseStartRequestData
-} from "../models/eft/hideout/IHideoutScavCaseStartRequestData";
-import {
-    IHideoutSingleProductionStartRequestData
-} from "../models/eft/hideout/IHideoutSingleProductionStartRequestData";
-import {
-    IHideoutTakeItemOutRequestData
-} from "../models/eft/hideout/IHideoutTakeItemOutRequestData";
-import {
-    IHideoutTakeProductionRequestData
-} from "../models/eft/hideout/IHideoutTakeProductionRequestData";
-import { IHideoutToggleAreaRequestData } from "../models/eft/hideout/IHideoutToggleAreaRequestData";
-import {
-    IHideoutUpgradeCompleteRequestData
-} from "../models/eft/hideout/IHideoutUpgradeCompleteRequestData";
-import { IHideoutUpgradeRequestData } from "../models/eft/hideout/IHideoutUpgradeRequestData";
-import { IRecordShootingRangePoints } from "../models/eft/hideout/IRecordShootingRangePoints";
-import { IItemEventRouterResponse } from "../models/eft/itemEvent/IItemEventRouterResponse";
-import { ConfigTypes } from "../models/enums/ConfigTypes";
-import { IHideoutConfig } from "../models/spt/config/IHideoutConfig";
-import { ConfigServer } from "../servers/ConfigServer";
+import { HideoutController } from "@spt-aki/controllers/HideoutController";
+import { OnUpdate } from "@spt-aki/di/OnUpdate";
+import { IPmcData } from "@spt-aki/models/eft/common/IPmcData";
+import { IHandleQTEEventRequestData } from "@spt-aki/models/eft/hideout/IHandleQTEEventRequestData";
+import { IHideoutCancelProductionRequestData } from "@spt-aki/models/eft/hideout/IHideoutCancelProductionRequestData";
+import { IHideoutContinuousProductionStartRequestData } from "@spt-aki/models/eft/hideout/IHideoutContinuousProductionStartRequestData";
+import { IHideoutImproveAreaRequestData } from "@spt-aki/models/eft/hideout/IHideoutImproveAreaRequestData";
+import { IHideoutPutItemInRequestData } from "@spt-aki/models/eft/hideout/IHideoutPutItemInRequestData";
+import { IHideoutScavCaseStartRequestData } from "@spt-aki/models/eft/hideout/IHideoutScavCaseStartRequestData";
+import { IHideoutSingleProductionStartRequestData } from "@spt-aki/models/eft/hideout/IHideoutSingleProductionStartRequestData";
+import { IHideoutTakeItemOutRequestData } from "@spt-aki/models/eft/hideout/IHideoutTakeItemOutRequestData";
+import { IHideoutTakeProductionRequestData } from "@spt-aki/models/eft/hideout/IHideoutTakeProductionRequestData";
+import { IHideoutToggleAreaRequestData } from "@spt-aki/models/eft/hideout/IHideoutToggleAreaRequestData";
+import { IHideoutUpgradeCompleteRequestData } from "@spt-aki/models/eft/hideout/IHideoutUpgradeCompleteRequestData";
+import { IHideoutUpgradeRequestData } from "@spt-aki/models/eft/hideout/IHideoutUpgradeRequestData";
+import { IRecordShootingRangePoints } from "@spt-aki/models/eft/hideout/IRecordShootingRangePoints";
+import { IItemEventRouterResponse } from "@spt-aki/models/eft/itemEvent/IItemEventRouterResponse";
+import { ConfigTypes } from "@spt-aki/models/enums/ConfigTypes";
+import { IHideoutConfig } from "@spt-aki/models/spt/config/IHideoutConfig";
+import { ConfigServer } from "@spt-aki/servers/ConfigServer";
 
 @injectable()
 export class HideoutCallbacks implements OnUpdate
@@ -41,7 +28,7 @@ export class HideoutCallbacks implements OnUpdate
 
     constructor(
         @inject("HideoutController") protected hideoutController: HideoutController, // TODO: delay needed
-        @inject("ConfigServer") protected configServer: ConfigServer
+        @inject("ConfigServer") protected configServer: ConfigServer,
     )
     {
         this.hideoutConfig = this.configServer.getConfig(ConfigTypes.HIDEOUT);
@@ -58,7 +45,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutUpgradeComplete event
      */
-    public upgradeComplete(pmcData: IPmcData, body: IHideoutUpgradeCompleteRequestData, sessionID: string): IItemEventRouterResponse
+    public upgradeComplete(
+        pmcData: IPmcData,
+        body: IHideoutUpgradeCompleteRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.upgradeComplete(pmcData, body, sessionID);
     }
@@ -66,7 +57,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutPutItemsInAreaSlots
      */
-    public putItemsInAreaSlots(pmcData: IPmcData, body: IHideoutPutItemInRequestData, sessionID: string): IItemEventRouterResponse
+    public putItemsInAreaSlots(
+        pmcData: IPmcData,
+        body: IHideoutPutItemInRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.putItemsInAreaSlots(pmcData, body, sessionID);
     }
@@ -74,7 +69,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutTakeItemsFromAreaSlots event
      */
-    public takeItemsFromAreaSlots(pmcData: IPmcData, body: IHideoutTakeItemOutRequestData, sessionID: string): IItemEventRouterResponse
+    public takeItemsFromAreaSlots(
+        pmcData: IPmcData,
+        body: IHideoutTakeItemOutRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.takeItemsFromAreaSlots(pmcData, body, sessionID);
     }
@@ -82,7 +81,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutToggleArea event
      */
-    public toggleArea(pmcData: IPmcData, body: IHideoutToggleAreaRequestData, sessionID: string): IItemEventRouterResponse
+    public toggleArea(
+        pmcData: IPmcData,
+        body: IHideoutToggleAreaRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.toggleArea(pmcData, body, sessionID);
     }
@@ -90,7 +93,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutSingleProductionStart event
      */
-    public singleProductionStart(pmcData: IPmcData, body: IHideoutSingleProductionStartRequestData, sessionID: string): IItemEventRouterResponse
+    public singleProductionStart(
+        pmcData: IPmcData,
+        body: IHideoutSingleProductionStartRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.singleProductionStart(pmcData, body, sessionID);
     }
@@ -98,7 +105,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutScavCaseProductionStart event
      */
-    public scavCaseProductionStart(pmcData: IPmcData, body: IHideoutScavCaseStartRequestData, sessionID: string): IItemEventRouterResponse
+    public scavCaseProductionStart(
+        pmcData: IPmcData,
+        body: IHideoutScavCaseStartRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.scavCaseProductionStart(pmcData, body, sessionID);
     }
@@ -106,7 +117,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutContinuousProductionStart
      */
-    public continuousProductionStart(pmcData: IPmcData, body: IHideoutContinuousProductionStartRequestData, sessionID: string): IItemEventRouterResponse
+    public continuousProductionStart(
+        pmcData: IPmcData,
+        body: IHideoutContinuousProductionStartRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.continuousProductionStart(pmcData, body, sessionID);
     }
@@ -114,7 +129,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutTakeProduction event
      */
-    public takeProduction(pmcData: IPmcData, body: IHideoutTakeProductionRequestData, sessionID: string): IItemEventRouterResponse
+    public takeProduction(
+        pmcData: IPmcData,
+        body: IHideoutTakeProductionRequestData,
+        sessionID: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.takeProduction(pmcData, body, sessionID);
     }
@@ -122,7 +141,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle HideoutQuickTimeEvent
      */
-    public handleQTEEvent(pmcData: IPmcData, request: IHandleQTEEventRequestData, sessionId: string): IItemEventRouterResponse
+    public handleQTEEvent(
+        pmcData: IPmcData,
+        request: IHandleQTEEventRequestData,
+        sessionId: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.handleQTEEventOutcome(sessionId, pmcData, request);
     }
@@ -130,7 +153,11 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle client/game/profile/items/moving - RecordShootingRangePoints
      */
-    public recordShootingRangePoints(pmcData: IPmcData, request: IRecordShootingRangePoints, sessionId: string): IItemEventRouterResponse
+    public recordShootingRangePoints(
+        pmcData: IPmcData,
+        request: IRecordShootingRangePoints,
+        sessionId: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.recordShootingRangePoints(sessionId, pmcData, request);
     }
@@ -138,9 +165,25 @@ export class HideoutCallbacks implements OnUpdate
     /**
      * Handle client/game/profile/items/moving - RecordShootingRangePoints
      */
-    public improveArea(pmcData: IPmcData, request: IHideoutImproveAreaRequestData, sessionId: string): IItemEventRouterResponse
+    public improveArea(
+        pmcData: IPmcData,
+        request: IHideoutImproveAreaRequestData,
+        sessionId: string,
+    ): IItemEventRouterResponse
     {
         return this.hideoutController.improveArea(sessionId, pmcData, request);
+    }
+
+    /**
+     * Handle client/game/profile/items/moving - HideoutCancelProductionCommand
+     */
+    public cancelProduction(
+        pmcData: IPmcData,
+        request: IHideoutCancelProductionRequestData,
+        sessionId: string,
+    ): IItemEventRouterResponse
+    {
+        return this.hideoutController.cancelProduction(sessionId, pmcData, request);
     }
 
     public async onUpdate(timeSinceLastRun: number): Promise<boolean>
@@ -154,7 +197,7 @@ export class HideoutCallbacks implements OnUpdate
         return false;
     }
 
-    public getRoute() :string
+    public getRoute(): string
     {
         return "aki-hideout";
     }
